@@ -1,12 +1,5 @@
-FluxLinux brings full Linux desktops to Android. Install Debian with XFCE4, run dev tools, and use GPU acceleration.
-
-<b>Features:</b>
-• One-tap Debian install
-• GPU acceleration (Turnip/VirGL)
-• Web, App, and Data Science stacks
-• XFCE4 desktop with themes
-• Rooted & Non-rooted support
+NativeCode turns Android into a vibe coding workstation. Run AI coding CLIs like Codex, Claude Code, Gemini CLI, aider, and QwenCode, use editors like VS Code, Cursor, Windsurf, and Kiro, and plug into MCP/LSP tools such as Context7, context-mode, filesystem, android-mcp, github-mcp, and playwright-mcp.
 
 <b>Requirements:</b> Termux, Termux:X11
 
-<b>Note:</b> Uses AccessibilityService API for system navigation actions (Back/Home) from the UI. No data is collected.
+<b>Note:</b> Supports rooted/non-rooted devices. Uses AccessibilityService for Back/Home actions from the UI. No data is collected.

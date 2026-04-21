@@ -1,6 +1,6 @@
 First F-Droid Release! (v1.3)
 
-FluxLinux is now fully Open Source (GPLv3).
+NativeCode is now fully Open Source (GPLv3).
 
 New:
 * Initial F-Droid release
@@ -8,4 +8,4 @@ New:
 * Enhanced build reproducibility
 * Removed all non-FOSS dependencies
 
-Enjoy full Linux desktops on your Android device!
+Enjoy building on Android with NativeCode!

@@ -2,10 +2,12 @@
 
 ## App Information
 - **Package Name**: com.zenithblue.fluxlinux
-- **App Name**: FluxLinux
+- **Public Brand**: NativeCode
+- **Store/App Name**: NativeCode
 - **Current Version**: 1.0 (versionCode: 1)
 - **Target SDK**: 36 (Android 16)
 - **Min SDK**: 26 (Android 8.0)
+- **Note**: Package identifiers still use `fluxlinux` until the app/package rename is done
 
 ## Directory Structure
 ```
@@ -17,60 +19,58 @@ fastlane/
             ├── short_description.txt
             ├── full_description.txt
             ├── changelogs/
-            │   └── 1.txt
+            │   ├── 1.txt
+            │   └── ...
             └── images/
                 ├── icon.png
+                ├── featureGraphic.png
                 └── phoneScreenshots/
-                    ├── 1.png  (TO BE ADDED)
-                    ├── 2.png  (TO BE ADDED)
-                    ├── 3.png  (TO BE ADDED)
-                    └── 4.png  (TO BE ADDED)
+                    ├── 1.png
+                    ├── 2.png
+                    ├── ...
+                    └── 7.png
 ```
 
-## Files Created
+## Metadata Targets
 
 | File | Characters | Status |
 |------|------------|--------|
-| title.txt | 25 | ✅ Under 50 |
-| short_description.txt | 69 | ✅ Under 80 |
-| full_description.txt | 408 | ✅ Under 500 |
-| changelogs/1.txt | 383 | ✅ Under 500 |
-| images/icon.png | - | ✅ Copied |
+| title.txt | 31 | ✅ Under 50 |
+| short_description.txt | 51 | ✅ Under 80 |
+| full_description.txt | 488 | ✅ Under 500 |
+| changelogs/*.txt | Varies | ✅ Present |
+| images/* | - | ✅ Present |
 
 ## Content
 
 ### title.txt
 ```
-FluxLinux - Mobile Linux
+NativeCode - Android Vibe Coding
 ```
 
 ### short_description.txt
 ```
-Run full Linux desktop environments on Android with GPU acceleration
+AI coding tools, IDEs, and MCP servers on Android.
 ```
 
 ### full_description.txt
-Features GPU acceleration, one-tap Debian install, dev stacks, XFCE4 desktop.
+```
+NativeCode turns Android into a vibe coding workstation with AI coding CLIs,
+desktop IDEs, MCP/LSP integrations, and the Linux runtime needed to make them useful.
+```
 
-### changelogs/1.txt
-Initial release features: Debian install, GPU acceleration, dev stacks, UI.
+### changelogs
+Historical changelogs remain in place. Branding references in user-facing metadata were updated where needed, but the version history itself was not rewritten.
 
-## Pending
+## Current Positioning
 
-### Screenshots Needed
-User will provide screenshots to add to:
-- `fastlane/metadata/android/en-US/images/phoneScreenshots/`
+- **Core message**: Android vibe coding workstation
+- **CLI examples**: Codex, Claude Code, Gemini CLI, aider, QwenCode, OpenCode
+- **IDE examples**: VS Code, Cursor, Windsurf, Trae, Kiro IDE, Codex App
+- **MCP/LSP examples**: Context7, context-mode, filesystem, android-mcp, kotlin-mcp, github-mcp, playwright-mcp, Speckit, Agency Agent
 
-Recommended screenshots:
-1. Home screen / Dashboard
-2. Distro selection
-3. Installation progress
-4. Running desktop (Termux X11)
+## Notes
 
-## Compliance
-
-| Platform | Status |
-|----------|--------|
-| F-Droid | ✅ Ready (pending screenshots) |
-| Play Store | ✅ Ready (pending screenshots) |
-| Fastlane | ✅ Compatible structure |
+- Existing screenshots and media assets were kept as-is.
+- `docs/` content was intentionally left untouched.
+- The GPLv3 `LICENSE` file does not include product branding, so it did not require content changes.

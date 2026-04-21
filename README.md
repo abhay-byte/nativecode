@@ -1,7 +1,7 @@
 <div align="center">
   <img src="assets/logo/logo.webp" width="180" />
-  <h1>FluxLinux</h1>
-  <p><strong>Run full Linux desktop environments on your Android device</strong></p>
+  <h1>NativeCode</h1>
+  <p><strong>A vibe coding workspace for Android with AI coding tools, desktop editors, and MCP integrations</strong></p>
 
 <a href="https://play.google.com/store/apps/details?id=com.zenithblue.fluxlinux">
   <img src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" alt="Get it on Google Play" height="80"/>
@@ -13,11 +13,13 @@
 
 ---
 
-[![GitHub Downloads](https://img.shields.io/github/downloads/abhay-byte/fluxlinux/total?style=for-the-badge&logo=github&logoColor=white&labelColor=24292e&color=success)](https://github.com/abhay-byte/fluxlinux/releases)
-[![GitHub Stars](https://img.shields.io/github/stars/abhay-byte/fluxlinux?style=for-the-badge&logo=github&logoColor=white&labelColor=24292e&color=yellow)](https://github.com/abhay-byte/fluxlinux/stargazers)
-[![GitHub Forks](https://img.shields.io/github/forks/abhay-byte/fluxlinux?style=for-the-badge&logo=github&logoColor=white&labelColor=24292e&color=blue)](https://github.com/abhay-byte/fluxlinux/network/members)
+[![GitHub Downloads](https://img.shields.io/github/downloads/abhay-byte/nativecode/total?style=for-the-badge&logo=github&logoColor=white&labelColor=24292e&color=success)](https://github.com/abhay-byte/nativecode/releases)
+[![GitHub Stars](https://img.shields.io/github/stars/abhay-byte/nativecode?style=for-the-badge&logo=github&logoColor=white&labelColor=24292e&color=yellow)](https://github.com/abhay-byte/nativecode/stargazers)
+[![GitHub Forks](https://img.shields.io/github/forks/abhay-byte/nativecode?style=for-the-badge&logo=github&logoColor=white&labelColor=24292e&color=blue)](https://github.com/abhay-byte/nativecode/network/members)
 [![License](https://img.shields.io/badge/License-GPLv3-blue.svg?style=for-the-badge&logo=gnu&logoColor=white)](LICENSE)
 [![Android](https://img.shields.io/badge/Android-8.0%2B-green.svg?style=for-the-badge&logo=android&logoColor=white)](https://www.android.com)
+
+<p><em>Current package and store identifiers may still use <code>fluxlinux</code> while the public rebrand to NativeCode rolls out.</em></p>
 
 </div>
 
@@ -44,14 +46,13 @@
 
 ## 🚀 Vision
 
-Modern Android hardware is powerful enough to run desktop workloads, but the software ecosystem limits it. **FluxLinux** bridges this gap, enabling:
+Modern Android hardware is already capable enough for serious development work. **NativeCode** reframes that capability around vibe coding: a portable Android workspace where agentic CLI tools, desktop IDEs, language servers, and MCP-powered assistants can live in one place.
 
-- 🌐 **Full-Stack Web Development** — Node.js, Python, React, VS Code
-- 🎮 **Desktop Gaming** — Box64/Wine *(coming soon)*
-- 🔐 **Cybersecurity** — Nmap, Wireshark, Metasploit
-- 📊 **Data Science** — Jupyter, TensorFlow, PyTorch
-- 🎨 **Creative Tools** — GIMP, Blender, Inkscape
-- 📄 **Productivity** — LibreOffice, Firefox Desktop
+- 🤖 **AI Coding CLIs** - Codex, Claude Code, Gemini CLI, aider, KiloCode CLI, Kiro CLI, QwenCode, OpenCode, Cline, Junie, and similar terminal-first tools
+- 💻 **Desktop Editors and IDEs** - Antigravity, Codex App, VS Code, Cursor, Windsurf, Trae, Kiro IDE, and browser-based workspaces
+- 🔌 **MCP and LSP Integrations** - Caveman, Context7, context-mode, filesystem, android-mcp, kotlin-mcp, playwright-mcp, github-mcp, Speckit, Agency Agent, and related local tooling
+- 📱 **Android-Centric Development** - Kotlin, Gradle, Android SDK workflows, adb-driven automation, web previews, and mobile-first testing
+- 🐧 **Portable Linux Runtime** - Rootless by default, faster rooted paths when available, with the same Linux-on-Android foundation already documented in this repo
 
 ---
 
@@ -59,20 +60,20 @@ Modern Android hardware is powerful enough to run desktop workloads, but the sof
 
 | Feature | Description |
 |---------|-------------|
-| 🐧 **One-Tap Install** | Install Debian with XFCE4 desktop in minutes |
-| 🔓 **Rootless Mode** | Works on any Android 8+ device via PRoot |
-| ⚡ **Turbo Mode** | Native chroot performance for rooted devices |
-| 🎮 **GPU Acceleration** | Turnip (Adreno) + VirGL for graphics |
-| 🎨 **Custom Themes** | Beautiful XFCE4 with Space theme |
-| 📦 **Dev Stacks** | Pre-configured environments for coding |
+| 🤖 **CLI Agent Hub** | Run terminal-native coding tools like Codex, Claude Code, Gemini CLI, aider, QwenCode, OpenCode, Cline, and Junie |
+| 💻 **Editor Optionality** | Use VS Code, Cursor, Windsurf, Trae, Kiro IDE, Codex App, Antigravity, or browser-based IDE workflows |
+| 🔌 **MCP + LSP Ready** | Connect Context7, context-mode, filesystem, android-mcp, kotlin-mcp, github-mcp, playwright-mcp, Speckit, and agency-style agents |
+| 📱 **Android Dev Friendly** | Keep Android SDK, Kotlin/Gradle, terminal automation, and mobile testing close to the device you are building on |
+| 🔓 **Rootless by Default** | Works on Android 8+ via PRoot, with faster rooted paths when available |
+| 🎮 **Desktop-Class Runtime** | Termux:X11, Linux packages, browsers, and GPU acceleration provide a practical foundation for long coding sessions |
 
 ---
 
-## 🖼️ Desktop Experience
+## 🖼️ Coding Workspace
 
 <div align="center">
   <img src="assets/screenshots/xfce_desktop.png" width="700" />
-  <p><em>Full XFCE4 desktop with hardware acceleration</em></p>
+  <p><em>A portable Android workstation for terminal agents, editors, browsers, and local tooling</em></p>
 </div>
 
 ### 🚀 Development in Action
@@ -97,19 +98,19 @@ Modern Android hardware is powerful enough to run desktop workloads, but the sof
 </table>
 </div>
 
-### Included Development Stacks
+### Planned Tooling Surface
 
 <div align="center">
   <table>
     <tr>
-      <td align="center">🌐<br/><b>Web Dev</b><br/>Node.js, React, VS Code</td>
-      <td align="center">📱<br/><b>App Dev</b><br/>Flutter, Kotlin, Android SDK</td>
-      <td align="center">🧬<br/><b>Data Science</b><br/>Jupyter, TensorFlow</td>
+      <td align="center">🤖<br/><b>CLI Tools</b><br/>Codex, aider, Claude Code, Gemini CLI, QwenCode</td>
+      <td align="center">💻<br/><b>IDEs</b><br/>VS Code, Cursor, Windsurf, Trae, Kiro IDE</td>
+      <td align="center">🔌<br/><b>MCP</b><br/>Context7, context-mode, filesystem, github-mcp</td>
     </tr>
     <tr>
-      <td align="center">🎮<br/><b>Game Dev</b><br/>Godot Engine</td>
-      <td align="center">🔐<br/><b>Security</b><br/>Kali Tools</td>
-      <td align="center">🎨<br/><b>Graphics</b><br/>GIMP, Blender</td>
+      <td align="center">📱<br/><b>Android Dev</b><br/>Kotlin, Gradle, Android SDK, adb</td>
+      <td align="center">🧠<br/><b>Language Servers</b><br/>Kotlin LSP, TypeScript, Python, Rust, Go</td>
+      <td align="center">⚙️<br/><b>Automation</b><br/>Playwright MCP, Speckit, Agency Agent, GitHub flows</td>
     </tr>
   </table>
 </div>
@@ -121,40 +122,43 @@ Modern Android hardware is powerful enough to run desktop workloads, but the sof
 ```mermaid
 flowchart TB
     subgraph Android["📱 Android Device"]
-        FluxLinux["🚀 FluxLinux App<br/>(Kotlin + Jetpack Compose)"]
-        
+        NativeCode["🚀 NativeCode App<br/>(Kotlin + Jetpack Compose)"]
+
         subgraph Termux["🔧 Termux Environment"]
             TermuxHost["Terminal Host"]
-            
+
             subgraph Container["Linux Container"]
                 PRoot["🔓 PRoot<br/>(Rootless)"]
                 Chroot["⚡ Chroot<br/>(Rooted)"]
             end
-            
-            subgraph Distro["🐧 Debian 13 Trixie"]
-                XFCE["XFCE4 Desktop"]
-                DevTools["Development Tools"]
+
+            subgraph Workspace["🐧 Linux Coding Workspace"]
+                IDEs["Desktop IDEs"]
+                CliTools["CLI Coding Tools"]
+                McpLsp["MCP + LSP Services"]
             end
         end
-        
+
         subgraph Display["🖥️ Display System"]
             X11["Termux:X11"]
             GPU["GPU Acceleration<br/>(Turnip/VirGL)"]
         end
     end
-    
-    FluxLinux --> TermuxHost
+
+    NativeCode --> TermuxHost
     TermuxHost --> PRoot
     TermuxHost --> Chroot
-    PRoot --> Distro
-    Chroot --> Distro
-    Distro --> X11
+    PRoot --> Workspace
+    Chroot --> Workspace
+    Workspace --> X11
     X11 --> GPU
 ```
 
 ---
 
 ## 📚 Documentation
+
+The docs under [`docs/`](docs/) are intentionally left as-is for now. They still describe the current Linux runtime, scripts, and installation internals that NativeCode builds on today.
 
 | Document | Description |
 |----------|-------------|
@@ -179,10 +183,12 @@ flowchart TB
 
 ### Install
 
-1. Download FluxLinux from [Releases](https://github.com/abhay-byte/fluxlinux/releases)
+1. Download NativeCode from [Releases](https://github.com/abhay-byte/nativecode/releases)
 2. Install Termux from F-Droid
 3. Install Termux:X11
-4. Open FluxLinux and follow setup wizard
+4. Open NativeCode and follow setup wizard
+
+> Note: until the package rename lands, some package IDs, store listings, and app links may still reference `fluxlinux`.
 
 <div align="center">
   <img src="assets/screenshots/setup_wizard.png" width="250" />
@@ -191,9 +197,9 @@ flowchart TB
 
 ---
 
-## 🎮 GPU Acceleration
+## 🎮 Runtime Foundation
 
-FluxLinux supports hardware-accelerated graphics:
+NativeCode currently builds on the same Linux-on-Android runtime foundation, including hardware-accelerated graphics for desktop editors, browsers, previews, and GUI tooling:
 
 <table>
 <tr>
@@ -212,7 +218,7 @@ FluxLinux supports hardware-accelerated graphics:
 <td width="50%" align="center">
 
 <img src="assets/screenshots/hardware_acceleration/1.png" width="300" />
-<br/><em>GPU Driver Selection</em>
+<br/><em>GPU driver selection for the underlying Android Linux workspace</em>
 
 </td>
 </tr>
@@ -243,8 +249,8 @@ See [LICENSE](LICENSE) for details.
 <div align="center">
   <p>Made with ❤️ by <a href="https://github.com/abhay-byte">Abhay Raj</a></p>
   <p>
-    <a href="https://github.com/abhay-byte/fluxlinux">GitHub</a> •
-    <a href="https://github.com/abhay-byte/fluxlinux/issues">Issues</a> •
+    <a href="https://github.com/abhay-byte/nativecode">GitHub</a> •
+    <a href="https://github.com/abhay-byte/nativecode/issues">Issues</a> •
     <a href="docs/">Documentation</a>
   </p>
 </div>
