@@ -1,0 +1,5 @@
+XFCE4 Compositing Fix (v1.6)
+
+Fixes:
+* XFCE4 window decorations now load correctly (disabled compositing in xfwm4)
+* Matches KDE fix - both desktop environments now have compositing disabled for better compatibility

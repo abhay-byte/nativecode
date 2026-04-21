@@ -1,0 +1,21 @@
+# Android/Gradle
+.gradle/
+build/
+app/build/
+.idea/
+*.iml
+local.properties
+.DS_Store
+
+# FluxLinux Specific
+# (Add any generated script temp files here)
+tmp/
+scripts/generated/
+
+# Large NDK packages
+packages/android-ndk-r29-aarch64-linux-musl.tar.xz
+packages/android-ndk-r27d-aarch64-linux-musl.tar.xz
+
+app/release
+.kotlin
+flux.jks

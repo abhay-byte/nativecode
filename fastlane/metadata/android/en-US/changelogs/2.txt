@@ -1,0 +1,8 @@
+Compliance Update: Google Play Policy
+• Removed restricted permissions (INSTALL_PACKAGES, QUERY_ALL_PACKAGES).
+• Removed automatic APK installer; dependencies now download via browser.
+• Added Privacy Policy.
+• UI Improvements: Fixed layout overlap in Setup Wizard (Step 5).
+• Updated "Next" button styling.
+• Connecting fixes for Termux.
+• Version bumped to v1.1.

@@ -1,0 +1,6 @@
+What's New in v1.2:
+- 🛡️ Policy & Privacy: Added prominent disclosures for Accessibility Service usage.
+- 📦 BusyBox Support: New prerequisite step to help users install the BusyBox NDK module (required for Chroot). Visual guide included for both rooted and non-rooted users.
+- 🎨 UI Refinements: Enhanced look and feel for permission cards.
+- 🐛 Bug Fixes: Corrected step numbering in the setup wizard and improved stability.
+- ℹ️ General improvements and performance optimizations.

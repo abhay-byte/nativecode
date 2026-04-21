@@ -1,0 +1,10 @@
+Initial Release v1.0
+
+• One-tap Debian installation (PRoot & Chroot)
+• GPU acceleration with Turnip and VirGL
+• Pre-configured XFCE4 desktop with themes
+• Development stacks: Web, App, Data Science, Game Dev
+• Hardware acceleration setup wizard
+• Beautiful Material 3 UI with glassmorphism
+• Support for rooted and non-rooted devices
+• Termux X11 integration for GUI

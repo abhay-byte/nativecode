@@ -1,0 +1,671 @@
+package com.zenithblue.fluxlinux.ui.screens
+
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.zenithblue.fluxlinux.core.data.Distro
+import com.zenithblue.fluxlinux.core.data.DistroComponent
+import com.zenithblue.fluxlinux.core.utils.StateManager
+import com.zenithblue.fluxlinux.ui.components.GlassScaffold
+import com.zenithblue.fluxlinux.ui.theme.*
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.hazeChild
+import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
+import dev.chrisbanes.haze.materials.HazeMaterials
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalHazeMaterialsApi::class)
+@Composable
+fun DistroSettingsScreen(
+    distro: Distro,
+    onBack: () -> Unit,
+    onInstallComponent: (DistroComponent, Map<String, String>) -> Unit,
+    onUninstallDistro: () -> Unit,
+    onReinstallDistro: () -> Unit,
+    onNavigateToStart: (() -> Unit)? = null,
+    onStartActivity: (android.content.Intent) -> Unit,
+    onLaunchXfce: (() -> Unit)? = null,
+    onStopXfce: (() -> Unit)? = null,
+    onLaunchKde: (() -> Unit)? = null,
+    onStopKde: (() -> Unit)? = null,
+    onLaunchCli: (() -> Unit)? = null,
+    hazeState: HazeState
+) {
+    val context = LocalContext.current
+    var showUninstallDialog by remember { mutableStateOf(false) }
+    
+    // Config Dialog States
+    var showThemeDialog by remember { mutableStateOf(false) }
+    var showGpuDialog by remember { mutableStateOf(false) }
+    var activeComponent by remember { mutableStateOf<DistroComponent?>(null) }
+    
+    // Selections
+    var selectedTheme by remember { mutableStateOf("dark") }
+    var selectedGpu by remember { mutableStateOf("auto") }
+
+    GlassScaffold(
+        hazeState = hazeState,
+        topBar = {
+            TopAppBar(
+                title = { 
+                    Text(
+                        "Manage ${distro.name}", 
+                        color = MaterialTheme.colorScheme.secondary, 
+                        fontWeight = FontWeight.Bold 
+                    ) 
+                },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = MaterialTheme.colorScheme.secondary)
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Transparent
+                ),
+                modifier = Modifier.hazeChild(state = hazeState, shape = androidx.compose.ui.graphics.RectangleShape, style = HazeMaterials.thin())
+            )
+        },
+        content = {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(24.dp),
+                contentPadding = PaddingValues(top = 24.dp, bottom = 48.dp)
+            ) {
+                
+                // Header (Glass Card)
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(24.dp))
+                            .background(
+                                Brush.linearGradient(
+                                    colors = listOf(
+                                        MaterialTheme.colorScheme.surface.copy(alpha = 0.4f),
+                                        MaterialTheme.colorScheme.surface.copy(alpha = 0.2f)
+                                    )
+                                )
+                            )
+                            .border(
+                                1.dp, 
+                                Brush.verticalGradient(
+                                    listOf(
+                                        Color.White.copy(alpha = 0.2f),
+                                        Color.Transparent
+                                    )
+                                ), 
+                                RoundedCornerShape(24.dp)
+                            )
+                            .padding(20.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(56.dp)
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (distro.iconRes != null) {
+                                    Icon(
+                                        painter = androidx.compose.ui.res.painterResource(id = distro.iconRes),
+                                        contentDescription = null,
+                                        tint = Color.Unspecified, 
+                                        modifier = Modifier.size(36.dp)
+                                    )
+                                } else {
+                                    Icon(Icons.Default.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(32.dp))
+                                }
+                            }
+                            
+                            Spacer(modifier = Modifier.width(16.dp))
+                            
+                            Column {
+                                Text(
+                                    distro.name, 
+                                    style = MaterialTheme.typography.headlineSmall, 
+                                    fontWeight = FontWeight.Bold, 
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(8.dp)
+                                            .clip(androidx.compose.foundation.shape.CircleShape)
+                                            .background(Color(0xFF4CAF50))
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        "Installed & Ready", 
+                                        style = MaterialTheme.typography.bodyMedium, 
+                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+
+                // ─── Components Section Title ──────────────────────────────
+                item {
+                    Text(
+                        text = "Features & Components",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.secondary,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+
+
+                items(distro.components) { component ->
+                    val isInstalled = remember(component.id) { 
+                        StateManager.isComponentInstalled(context, distro.id, component.id) 
+                    }
+                    val details = componentDetailsMap[component.id]
+                    
+                    ComponentManagementGlassCard(
+                        component = component,
+                        isInstalled = isInstalled,
+                        details = details,
+                        onAction = { 
+                            when {
+                                component.id == "customization" -> {
+                                    // XFCE4 customization — show theme + GPU dialog
+                                    activeComponent = component
+                                    showThemeDialog = true
+                                }
+                                component.id == "hw_accel" -> {
+                                    // Hardware acceleration — show GPU dialog
+                                    activeComponent = component
+                                    showGpuDialog = true
+                                }
+                                component.id == "kde_customization" -> {
+                                    // KDE customization — show theme dialog (kde script handles FLUX_THEME)
+                                    activeComponent = component
+                                    showThemeDialog = true
+                                }
+                                else -> {
+                                    // Generic install (kde_plasma, app_dev, web_dev, etc.)
+                                    onInstallComponent(component, emptyMap())
+                                }
+                            }
+                        }
+                    )
+                }
+
+                // Danger Zone
+                item {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "Danger Zone",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = Color(0xFFFF5252),
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        // Reinstall Button (Redo Base Install)
+                        Button(
+                            onClick = onReinstallDistro,
+                            modifier = Modifier.fillMaxWidth().height(56.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFF2C2C2C).copy(alpha = 0.5f),
+                                contentColor = Color(0xFFFF9E80)
+                            ),
+                            shape = RoundedCornerShape(16.dp),
+                            border = BorderStroke(1.dp, Color(0xFFFF9E80).copy(alpha = 0.3f))
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(20.dp))
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Text("Re-run Installation Script", fontWeight = FontWeight.SemiBold)
+                            }
+                        }
+                        
+                        // Uninstall Button
+                        Button(
+                            onClick = { showUninstallDialog = true },
+                            modifier = Modifier.fillMaxWidth().height(56.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0x33FF5252),
+                                contentColor = Color(0xFFFF5252)
+                            ),
+                            shape = RoundedCornerShape(16.dp),
+                            border = BorderStroke(1.dp, Color(0xFFFF5252).copy(alpha = 0.5f))
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(20.dp))
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Text("Uninstall Distribution", fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                    
+                    Spacer(modifier = Modifier.height(50.dp))
+                }
+            }
+        }
+    )
+    
+    // --- DIALOGS ---
+
+    // Uninstall Dialog
+    if (showUninstallDialog) {
+        val isChroot = distro.id == "debian_chroot" || distro.id == "debian13_chroot" || distro.id == "arch_chroot" || distro.id.contains("chroot")
+        
+        GlassDialog(onDismiss = { showUninstallDialog = false }) {
+             Column(
+                modifier = Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Warning,
+                    contentDescription = null,
+                    tint = Color(0xFFFF5252),
+                    modifier = Modifier.size(48.dp)
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                Text(
+                    text = if(isChroot) "Manual Root Required" else "Uninstall ${distro.name}?",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                if (isChroot) {
+                    Text(
+                        "To uninstall this Chroot environment, you must use Root (superuser) access manually.", 
+                        style = MaterialTheme.typography.bodyMedium, 
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Box(modifier = Modifier.background(Color.Black.copy(alpha=0.3f), RoundedCornerShape(8.dp)).padding(12.dp)) {
+                        Column {
+                             Text("1. Click 'Proceed' to Copy Command", fontSize = 12.sp, color = MaterialTheme.colorScheme.secondary)
+                             Text("2. Open Termux -> Type 'su'", fontSize = 12.sp, color = MaterialTheme.colorScheme.secondary)
+                             Text("3. Paste & Run", fontSize = 12.sp, color = MaterialTheme.colorScheme.secondary)
+                        }
+                    }
+                } else {
+                     Text(
+                        "This will remove all data and files for ${distro.name}. This action cannot be undone.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+                
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Button(
+                        onClick = { showUninstallDialog = false },
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant, contentColor = MaterialTheme.colorScheme.onSurfaceVariant),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Cancel")
+                    }
+                    
+                    Button(
+                        onClick = { 
+                            if (isChroot) {
+                                // ... (Script generation logic) ...
+                                val scriptName = when(distro.id) {
+                                    "debian_chroot" -> "chroot/uninstall_debian_chroot.sh"
+                                    "debian13_chroot" -> "chroot/uninstall_debian13.sh"
+                                    else -> "chroot/uninstall_debian_chroot.sh"
+                                }
+                                
+                                try {
+                                    val scriptManager = com.zenithblue.fluxlinux.core.data.ScriptManager(context)
+                                    val scriptContent = scriptManager.getScriptContent(scriptName)
+                                    val command = com.zenithblue.fluxlinux.core.data.TermuxIntentFactory.getSafeRootManualCommand(scriptContent, "uninstall_${distro.id}.sh")
+                                    
+                                    val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                                    val clip = android.content.ClipData.newPlainText("FluxLinux Uninstall", command)
+                                    clipboard.setPrimaryClip(clip)
+                                    
+                                    val launchIntent = com.zenithblue.fluxlinux.core.data.TermuxIntentFactory.buildOpenTermuxIntent(context)
+                                    if (launchIntent != null) {
+                                        // StateManager.setDistroInstalled(context, distro.id, false) // REMOVED: Wait for callback
+                                        onStartActivity(launchIntent)
+                                        onBack() 
+                                        android.widget.Toast.makeText(context, "Command Copied!", android.widget.Toast.LENGTH_LONG).show()
+                                    }
+                                } catch (e: Exception) {}
+                            } else {
+                                onUninstallDistro()
+                            }
+                            showUninstallDialog = false 
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF5252), contentColor = Color.White),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(if(isChroot) "Proceed" else "Uninstall")
+                    }
+                }
+            }
+        }
+    }
+
+    // Theme Configuration Dialog
+    if (showThemeDialog && activeComponent != null) {
+        GlassDialog(onDismiss = { showThemeDialog = false }) {
+            Column(modifier = Modifier.padding(24.dp)) {
+                Text("Customize Desktop", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.secondary)
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                SettingsThemeOption(name = "Dark Mode (Default)", desc = "Sleek and professional.", id = "dark", selected = selectedTheme == "dark", onSelect = { selectedTheme = "dark" })
+                SettingsThemeOption(name = "Light Mode", desc = "Clean and bright.", id = "light", selected = selectedTheme == "light", onSelect = { selectedTheme = "light" })
+                
+                Spacer(modifier = Modifier.height(24.dp))
+                Button(
+                    onClick = {
+                        showThemeDialog = false
+                        onInstallComponent(activeComponent!!, mapOf("FLUX_THEME" to selectedTheme))
+                    },
+                    modifier = Modifier.fillMaxWidth().height(50.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary)
+                ) {
+                    Text("Apply Theme")
+                }
+            }
+        }
+    }
+
+    // GPU Configuration Dialog
+    if (showGpuDialog && activeComponent != null) {
+        GlassDialog(onDismiss = { showGpuDialog = false }) {
+            Column(modifier = Modifier.padding(24.dp)) {
+                Text("Hardware Acceleration", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.secondary)
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                SettingsThemeOption(name = "Auto Detect (Recommended)", desc = "Detects Snapdragon (Turnip) or uses VirGL.", id = "auto", selected = selectedGpu == "auto", onSelect = { selectedGpu = "auto" })
+                SettingsThemeOption(name = "VirGL (Universal)", desc = "Compatible with most devices.", id = "virgl", selected = selectedGpu == "virgl", onSelect = { selectedGpu = "virgl" })
+                SettingsThemeOption(name = "Turnip/Zink (Snapdragon)", desc = "High performance for Adreno.", id = "turnip", selected = selectedGpu == "turnip", onSelect = { selectedGpu = "turnip" })
+                SettingsThemeOption(name = "Force Re-Detect", desc = "Ask interactively during install.", id = "ask", selected = selectedGpu == "ask", onSelect = { selectedGpu = "ask" })
+                
+                Spacer(modifier = Modifier.height(24.dp))
+                Button(
+                    onClick = {
+                        showGpuDialog = false
+                        onInstallComponent(activeComponent!!, mapOf("FLUX_GPU" to selectedGpu))
+                    },
+                    modifier = Modifier.fillMaxWidth().height(50.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary)
+                ) {
+                    Text("Apply Configuration")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun GlassDialog(onDismiss: () -> Unit, content: @Composable () -> Unit) {
+    androidx.compose.ui.window.Dialog(
+        onDismissRequest = onDismiss,
+        properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth(0.9f)
+                .clip(RoundedCornerShape(28.dp))
+                .background(
+                    Brush.linearGradient(
+                        colors = listOf(
+                            Color(0xFF1E1E1E).copy(alpha = 0.95f),
+                            Color(0xFF121212).copy(alpha = 0.98f)
+                        )
+                    )
+                )
+                .border(
+                    BorderStroke(1.dp, Brush.verticalGradient(
+                        listOf(
+                            Color.White.copy(alpha = 0.15f),
+                            Color.Transparent
+                        )
+                    )),
+                    RoundedCornerShape(28.dp)
+                )
+        ) {
+            content()
+        }
+    }
+}
+
+@Composable
+fun SettingsThemeOption(name: String, desc: String, id: String, selected: Boolean, onSelect: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onSelect() }
+            .padding(vertical = 8.dp)
+            .background(if(selected) MaterialTheme.colorScheme.surfaceVariant.copy(alpha=0.1f) else Color.Transparent, RoundedCornerShape(8.dp))
+            .padding(8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        RadioButton(
+            selected = selected,
+            onClick = onSelect,
+            colors = RadioButtonDefaults.colors(selectedColor = MaterialTheme.colorScheme.secondary)
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Column {
+            Text(name, fontWeight = FontWeight.SemiBold, color = if(selected) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurface)
+            Text(desc, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+@Composable
+fun ComponentManagementGlassCard(
+    component: DistroComponent,
+    isInstalled: Boolean,
+    details: ComponentDetail?,
+    onAction: () -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(20.dp))
+            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.4f)) // Glass background
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f), RoundedCornerShape(20.dp))
+            .clickable(enabled = !component.comingSoon) { expanded = !expanded }
+            .padding(16.dp)
+    ) {
+        Column {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.Top
+            ) {
+                // Icon + Info
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (details != null) {
+                            Icon(
+                                imageVector = details.icon,
+                                contentDescription = null,
+                                modifier = Modifier.size(24.dp),
+                                tint = if (component.comingSoon) MaterialTheme.colorScheme.secondary.copy(alpha = 0.4f) else MaterialTheme.colorScheme.secondary
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                        }
+                        
+                        Text(
+                            text = component.name,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = if (component.comingSoon) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f) else MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                    
+                    Spacer(modifier = Modifier.height(4.dp))
+                    
+                    Text(
+                        text = component.description,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = if (component.comingSoon) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f) else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                     
+                    Spacer(modifier = Modifier.height(8.dp))
+                    
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (component.comingSoon) {
+                            Box(
+                                modifier = Modifier
+                                    .background(MaterialTheme.colorScheme.tertiary.copy(alpha = 0.1f), RoundedCornerShape(4.dp))
+                                    .border(1.dp, MaterialTheme.colorScheme.tertiary.copy(alpha = 0.3f), RoundedCornerShape(4.dp))
+                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                            ) {
+                                Text("Coming Soon", fontSize = 10.sp, color = MaterialTheme.colorScheme.tertiary, fontWeight = FontWeight.Bold)
+                            }
+                        } else {
+                            Text(
+                                text = "Size: ${component.sizeEstimate}",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                            )
+                            if (isInstalled) {
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .background(MaterialTheme.colorScheme.secondaryContainer.copy(alpha=0.5f), RoundedCornerShape(4.dp))
+                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(Icons.Default.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.onSecondaryContainer, modifier = Modifier.size(10.dp))
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text("Installed", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSecondaryContainer, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Action Button (Right aligned)
+               Column(
+                   horizontalAlignment = Alignment.CenterHorizontally,
+                   verticalArrangement = Arrangement.Center
+               ) {
+                   if (!component.comingSoon) {
+                        Button(
+                            onClick = onAction,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (isInstalled) MaterialTheme.colorScheme.surfaceVariant.copy(alpha=0.5f) else MaterialTheme.colorScheme.primary,
+                                contentColor = if (isInstalled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onPrimary
+                            ),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.height(40.dp),
+                            elevation = ButtonDefaults.buttonElevation(0.dp)
+                        ) {
+                            if (isInstalled) {
+                                Text("Re-run", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                            } else {
+                                Text("Install", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                   }
+                   
+                   Spacer(modifier = Modifier.height(8.dp))
+                   
+                    if (details != null && !component.comingSoon) {
+                         IconButton(
+                            onClick = { expanded = !expanded },
+                            modifier = Modifier.size(24.dp)
+                        ) {
+                            Icon(
+                                imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                                contentDescription = if (expanded) "Collapse" else "Expand",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                            )
+                        }
+                    }
+               }
+            }
+            
+            // Collapsible Content
+            AnimatedVisibility(
+                visible = expanded,
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut()
+            ) {
+                if (details != null) {
+                    Column(modifier = Modifier.padding(top = 16.dp)) {
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = "Included Packages",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.secondary,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        
+                        details.packages.forEach { (pkg, size) ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    text = "• $pkg",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
+                                )
+                                Text(
+                                    text = size,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,97 @@
+#!/bin/bash
+# setup_office_debian.sh
+# Installs Office Productivity Stack
+# Target: Debian 13 (Trixie) ARM64
+# Compatible with: Chroot and Proot
+
+# Error Handler
+handle_error() {
+    echo ""
+    echo "❌ FluxLinux Error: Script failed at step: $1"
+    echo "---------------------------------------------------"
+    echo "Please check the error message above for details."
+    echo "---------------------------------------------------"
+    read -p "Press Enter to acknowledge error and exit..."
+    exit 1
+}
+
+echo "FluxLinux: Setting up Office Productivity Environment..."
+echo "Target: Debian 13 (Trixie) - ARM64"
+
+# 1. System Dependencies
+echo "FluxLinux: Installing Dependencies..."
+export DEBIAN_FRONTEND=noninteractive
+apt update -y
+
+# Install essential fonts first (these are small and reliable)
+apt install -y \
+    dbus-x11 \
+    fonts-noto-core \
+    fonts-liberation \
+    fonts-dejavu \
+    || handle_error "Dependencies & Fonts"
+
+# Conditional NPM Install (Fix for NodeSource Conflict)
+# If setup_webdev_debian.sh ran, nodejs includes npm.
+# If not, Debian split packages might need explicit npm.
+if ! command -v npm >/dev/null; then
+    echo "FluxLinux: NPM not found (bundled), installing explicitly..."
+    apt install -y npm || echo " [⚠️] NPM install warning (might be bundled)"
+fi
+
+# 2. LibreOffice Suite
+echo "FluxLinux: Installing LibreOffice Suite..."
+# Use --no-install-recommends to avoid large optional packages like fonts-noto-extra
+# which can fail in proot environments due to resource constraints
+apt install -y --no-install-recommends \
+    libreoffice \
+    libreoffice-gtk3 \
+    || {
+        echo "⚠️ LibreOffice install had issues, attempting to fix..."
+        # Fix any broken packages (common in proot with large fonts)
+        apt --fix-broken install -y
+        dpkg --configure -a
+        # Retry with just the core package
+        apt install -y --no-install-recommends libreoffice-writer libreoffice-calc libreoffice-impress libreoffice-gtk3 \
+            || handle_error "LibreOffice Installation"
+    }
+
+# 3. Email & PIM
+echo "FluxLinux: Installing Email & Organization Tools..."
+# Thunderbird: Email client
+apt install -y --no-install-recommends \
+    thunderbird \
+    || handle_error "Thunderbird Installation"
+
+# 4. PDF Tools
+echo "FluxLinux: Installing PDF Tools..."
+# Evince: Document Viewer
+# Xournal++: Note taking & PDF Annotation
+apt install -y --no-install-recommends \
+    evince \
+    xournalpp \
+    || handle_error "PDF Tools Installation"
+
+# 5. Optional: Try to install extra fonts (non-fatal if fails)
+echo "FluxLinux: Installing additional fonts (optional)..."
+apt install -y fonts-noto 2>/dev/null || echo " [⚠️] Optional fonts skipped (proot limitation)"
+
+# 6. Verification
+verify_installation() {
+    echo ""
+    echo "🔎 FluxLinux: Verifying Installations..."
+    echo "------------------------------------------------"
+    
+    if command -v libreoffice >/dev/null; then echo " [✅] LibreOffice"; else echo " [❌] LibreOffice Missing"; fi
+    if command -v thunderbird >/dev/null; then echo " [✅] Thunderbird"; else echo " [❌] Thunderbird Missing"; fi
+    if command -v evince >/dev/null; then echo " [✅] Evince"; else echo " [❌] Evince Missing"; fi
+    if command -v xournalpp >/dev/null; then echo " [✅] Xournal++"; else echo " [❌] Xournal++ Missing"; fi
+
+    echo "------------------------------------------------"
+    echo "🎉 Office Setup Complete!"
+}
+
+verify_installation
+
+echo "Note: Check your Applications menu for installed tools."
+read -p "Press Enter to close..."
