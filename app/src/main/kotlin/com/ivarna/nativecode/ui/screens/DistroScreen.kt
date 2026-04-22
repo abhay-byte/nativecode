@@ -75,8 +75,8 @@ fun DistroScreen(
         }
         
         val availableDistros = DistroRepository.supportedDistros.filter { 
-            !installedDistroIds.contains(it.id)
-        }.sortedWith(compareBy<Distro> { it.comingSoon }.thenByDescending { it.id == "termux" }.thenBy { it.name })
+            !installedDistroIds.contains(it.id) && !it.comingSoon
+        }.sortedWith(compareByDescending<Distro> { it.id == "termux" }.thenBy { it.name })
         
         if (availableDistros.isEmpty()) {
             Box(
@@ -93,28 +93,21 @@ fun DistroScreen(
             }
         } else {
             availableDistros.forEach { distro ->
-                if (distro.comingSoon) {
-                    // Use compact card for coming soon distros
-                    com.ivarna.nativecode.ui.components.CompactDistroCard(
-                        distro = distro
-                    )
-                } else {
-                    // Use full card for available distros
-                    com.ivarna.nativecode.ui.components.DistroCard(
-                        distro = distro,
-                        isInstalled = false,
-                        onInstall = {
-                            if (permissionState.status.isGranted) {
-                                onNavigateToInstall(distro)
-                            } else {
-                                permissionState.launchPermissionRequest()
-                            }
-                        },
-                        onUninstall = {}, // Not used
-                        onNavigateToSettings = {}, // Not used
-                        onNavigateToStart = {} // Not used
-                    )
-                }
+                // Use full card for available distros
+                com.ivarna.nativecode.ui.components.DistroCard(
+                    distro = distro,
+                    isInstalled = false,
+                    onInstall = {
+                        if (permissionState.status.isGranted) {
+                            onNavigateToInstall(distro)
+                        } else {
+                            permissionState.launchPermissionRequest()
+                        }
+                    },
+                    onUninstall = {}, // Not used
+                    onNavigateToSettings = {}, // Not used
+                    onNavigateToStart = {} // Not used
+                )
             }
         }
         
