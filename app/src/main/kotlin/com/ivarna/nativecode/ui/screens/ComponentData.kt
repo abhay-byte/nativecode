@@ -190,5 +190,21 @@ val componentDetailsMap = mapOf(
             "DOSBox" to "10 MB"
         ),
         totalSizeValues = 1.2
+    ),
+    "ai_tools" to ComponentDetail(
+        icon = Icons.Default.Code,
+        packages = listOf(
+            "Codex CLI (OpenAI)" to "~50 MB",
+            "More tools coming soon..." to "varies"
+        ),
+        totalSizeValues = 0.1
+    ),
+    "ai_tools_codex" to ComponentDetail(
+        icon = Icons.Default.Code,
+        packages = listOf(
+            "Node.js v22 LTS (if missing)" to "~60 MB",
+            "@openai/codex (npm global)" to "~50 MB"
+        ),
+        totalSizeValues = 0.11
     )
 )

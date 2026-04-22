@@ -66,10 +66,23 @@ fun DistroSettingsScreen(
     var showThemeDialog by remember { mutableStateOf(false) }
     var showGpuDialog by remember { mutableStateOf(false) }
     var activeComponent by remember { mutableStateOf<DistroComponent?>(null) }
+    var showAiToolsScreen by remember { mutableStateOf(false) }
     
     // Selections
     var selectedTheme by remember { mutableStateOf("dark") }
     var selectedGpu by remember { mutableStateOf("auto") }
+
+
+    // Navigate to AI Tools sub-screen
+    if (showAiToolsScreen) {
+        AiToolsScreen(
+            distro = distro,
+            onBack = { showAiToolsScreen = false },
+            onInstallComponent = onInstallComponent,
+            hazeState = hazeState
+        )
+        return
+    }
 
     GlassScaffold(
         hazeState = hazeState,
@@ -220,8 +233,12 @@ fun DistroSettingsScreen(
                                     showThemeDialog = true
                                 }
                                 else -> {
-                                    // Generic install (kde_plasma, app_dev, web_dev, etc.)
-                                    onInstallComponent(component, emptyMap())
+                                    if (component.id == "ai_tools") {
+                                        showAiToolsScreen = true
+                                    } else {
+                                        // Generic install (kde_plasma, app_dev, web_dev, etc.)
+                                        onInstallComponent(component, emptyMap())
+                                    }
                                 }
                             }
                         }

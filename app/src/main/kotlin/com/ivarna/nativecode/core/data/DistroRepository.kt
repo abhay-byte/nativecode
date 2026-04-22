@@ -112,6 +112,13 @@ object DistroRepository {
             sizeEstimate = "1.2 GB"
         ),
         DistroComponent(
+            id = "ai_tools",
+            name = "AI Tools",
+            description = "Terminal AI coding agents, LLM CLIs, and MCP tools for your workspace.",
+            scriptName = "",  // Sub-page navigation — no direct script
+            sizeEstimate = "varies"
+        ),
+        DistroComponent(
             id = "emulation",
             name = "Retro Emulation",
             description = "RetroArch, various emulator cores.",
