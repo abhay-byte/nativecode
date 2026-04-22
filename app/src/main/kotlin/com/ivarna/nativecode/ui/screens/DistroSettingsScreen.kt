@@ -17,6 +17,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Refresh
@@ -192,6 +193,52 @@ fun DistroSettingsScreen(
                     }
                 }
 
+                // ─── AI Tools Banner ──────────────────────────────
+                item {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(
+                                Brush.linearGradient(
+                                    colors = listOf(
+                                        Color(0xFF10A37F).copy(alpha = 0.15f), // OpenAI Green tint
+                                        MaterialTheme.colorScheme.surface.copy(alpha = 0.4f)
+                                    )
+                                )
+                            )
+                            .border(1.dp, Color(0xFF10A37F).copy(alpha = 0.3f), RoundedCornerShape(20.dp))
+                            .clickable { showAiToolsScreen = true }
+                            .padding(16.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                Icons.Default.Code,
+                                contentDescription = null,
+                                tint = Color(0xFF10A37F),
+                                modifier = Modifier.size(32.dp)
+                            )
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Column {
+                                Text(
+                                    "AI Agents & Tooling",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    "Codex CLI, LLMs, and MCP Servers",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+
 
                 // ─── Components Section Title ──────────────────────────────
                 item {
@@ -205,7 +252,10 @@ fun DistroSettingsScreen(
 
 
 
-                items(distro.components) { component ->
+                // Filter out component IDs that have dedicated UI sections
+                val genericComponents = distro.components.filter { it.id != "ai_tools" }
+
+                items(genericComponents) { component ->
                     val isInstalled = remember(component.id) { 
                         StateManager.isComponentInstalled(context, distro.id, component.id) 
                     }

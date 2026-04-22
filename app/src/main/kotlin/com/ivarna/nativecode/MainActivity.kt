@@ -287,6 +287,11 @@ class MainActivity : ComponentActivity() {
                                 onNavigateToInstall = onNavigateToInstall
                             )
                         }
+                        BottomTab.PROJECTS -> {
+                            com.ivarna.nativecode.ui.screens.ProjectsScreen(
+                                hazeState = hazeState
+                            )
+                        }
                     }
                 }
 

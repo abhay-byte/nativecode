@@ -21,9 +21,12 @@ import androidx.compose.ui.unit.sp
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeChild
 
+import androidx.compose.material.icons.filled.Folder
+
 enum class BottomTab(val title: String, val icon: ImageVector) {
     HOME("Home", Icons.Default.Home),
-    DISTROS("Distros", Icons.Default.List)
+    DISTROS("Distros", Icons.Default.List),
+    PROJECTS("Projects", Icons.Default.Folder)
 }
 
 @Composable

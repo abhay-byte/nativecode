@@ -362,5 +362,32 @@ object StateManager {
         prefs.edit().putString("distro_${distroId}_gui_type", type).apply()
         android.util.Log.d("StateManager", "Distro $distroId GUI type set to: $type")
     }
+    /**
+     * Get saved nativecode project paths
+     */
+    fun getProjectPaths(context: Context): Set<String> {
+        val prefs = context.getSharedPreferences("nativecode_projects", Context.MODE_PRIVATE)
+        return prefs.getStringSet("project_paths", emptySet()) ?: emptySet()
+    }
+
+    /**
+     * Add a project path
+     */
+    fun addProjectPath(context: Context, path: String) {
+        val prefs = context.getSharedPreferences("nativecode_projects", Context.MODE_PRIVATE)
+        val currentPaths = prefs.getStringSet("project_paths", emptySet())?.toMutableSet() ?: mutableSetOf()
+        currentPaths.add(path)
+        prefs.edit().putStringSet("project_paths", currentPaths).apply()
+    }
+
+    /**
+     * Remove a project path
+     */
+    fun removeProjectPath(context: Context, path: String) {
+        val prefs = context.getSharedPreferences("nativecode_projects", Context.MODE_PRIVATE)
+        val currentPaths = prefs.getStringSet("project_paths", emptySet())?.toMutableSet() ?: mutableSetOf()
+        currentPaths.remove(path)
+        prefs.edit().putStringSet("project_paths", currentPaths).apply()
+    }
 
 }
