@@ -109,8 +109,8 @@ done
 success "Uninstallation Complete!"
 
 # 4. Notify App
-progress "Notifying FluxLinux App..."
-echo "Running: am start -a android.intent.action.VIEW -d \"fluxlinux://callback?result=success&name=distro_uninstall_debian_chroot\""
-am start -a android.intent.action.VIEW -d "fluxlinux://callback?result=success&name=distro_uninstall_debian_chroot" >/dev/null 2>&1
+progress "Notifying NativeCode App..."
+echo "Running: am start -a android.intent.action.VIEW -d \"nativecode://callback?result=success&name=distro_uninstall_debian_chroot\""
+am start -a android.intent.action.VIEW -d "nativecode://callback?result=success&name=distro_uninstall_debian_chroot" >/dev/null 2>&1
 echo "Callback exit code: $?"
 

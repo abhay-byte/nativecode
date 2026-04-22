@@ -9,18 +9,18 @@ if [ "$(id -u)" != "0" ]; then
     exit 1
 fi
 
-echo "FluxLinux: Setting up Hardware Acceleration (Debian)..."
+echo "NativeCode: Setting up Hardware Acceleration (Debian)..."
 
 # 1. Install Dependencies
 # 1. Install Dependencies & Upgrade System
-echo "FluxLinux: Detecting Package Manager..."
+echo "NativeCode: Detecting Package Manager..."
 
 if command -v pacman &> /dev/null; then
     # --- ARCH LINUX DETECTED ---
     echo "Arch Linux detected (pacman). Running System Update..."
     pacman -Syu --noconfirm
     
-    echo "FluxLinux: Installing Arch Dependencies..."
+    echo "NativeCode: Installing Arch Dependencies..."
     pacman -S --noconfirm \
         mesa \
         vulkan-radeon \
@@ -31,12 +31,12 @@ if command -v pacman &> /dev/null; then
         unzip \
         xdg-desktop-portal
         
-    echo "FluxLinux: Arch Setup Complete." 
+    echo "NativeCode: Arch Setup Complete." 
 
 elif command -v apt-get &> /dev/null; then
     # --- DEBIAN/UBUNTU DETECTED ---
     echo "Debian/Ubuntu detected (apt)."
-    echo "FluxLinux: Installing Vulkan/Mesa dependencies..."
+    echo "NativeCode: Installing Vulkan/Mesa dependencies..."
     apt-get update
     apt-get install -y \
         mesa-utils \
@@ -64,7 +64,7 @@ fi
 
 # 3. GPU Selection Menu
 if [ -n "$FLUX_GPU" ] && [ "$FLUX_GPU" != "manual" ] && [ "$FLUX_GPU" != "ask" ]; then
-    echo "FluxLinux: Auto-detected GPU preference: $FLUX_GPU"
+    echo "NativeCode: Auto-detected GPU preference: $FLUX_GPU"
     if [ "$FLUX_GPU" == "turnip" ]; then
         GPU_CHOICE="1"
     else
@@ -103,7 +103,7 @@ case "$GPU_CHOICE" in
         ;;
 esac
 
-echo "FluxLinux: Configuring for $MODE..."
+echo "NativeCode: Configuring for $MODE..."
 
 if [ "$MODE" = "turnip" ]; then
     # Install Turnip (Mesa Turnip for Adreno - KGSL-based, proot compatible)
@@ -124,19 +124,19 @@ if [ "$MODE" = "turnip" ]; then
     
     URL="https://github.com/lfdevs/mesa-for-android-container/releases/download/turnip-${TURNIP_VERSION}/turnip_${TURNIP_VERSION}_${DISTRO}_arm64.tar.gz"
 
-    echo "FluxLinux: Downloading Turnip drivers v${TURNIP_VERSION} for ${DISTRO}..."
+    echo "NativeCode: Downloading Turnip drivers v${TURNIP_VERSION} for ${DISTRO}..."
     curl -L -o /tmp/turnip.tar.gz "$URL"
 
     if [ -f "/tmp/turnip.tar.gz" ]; then
-        echo "FluxLinux: Installing Turnip..."
+        echo "NativeCode: Installing Turnip..."
         tar -zxvf /tmp/turnip.tar.gz -C /
         ldconfig
         rm /tmp/turnip.tar.gz
-        echo "FluxLinux: Turnip installed successfully!"
+        echo "NativeCode: Turnip installed successfully!"
         
         # Disable XFCE4 compositor (causes black screen with Turnip)
         # Must modify config files directly since desktop may not be running
-        echo "FluxLinux: Disabling XFCE4 compositor for Turnip compatibility..."
+        echo "NativeCode: Disabling XFCE4 compositor for Turnip compatibility..."
         
         # For all users with XFCE4 config
         for userdir in /home/* /root; do
@@ -156,11 +156,11 @@ XFCEXML
                 chown -R $(stat -c '%U:%G' "$userdir") "$userdir/.config" 2>/dev/null || true
             fi
         done
-        echo "FluxLinux: XFCE4 compositor disabled."
+        echo "NativeCode: XFCE4 compositor disabled."
         
         # Create fake /dev/dri for apps that check it (like vkmark)
         # Turnip uses /dev/kgsl-3d0 but some apps iterate /dev/dri
-        echo "FluxLinux: Creating /dev/dri compatibility layer..."
+        echo "NativeCode: Creating /dev/dri compatibility layer..."
         mkdir -p /dev/dri 2>/dev/null || true
         if [ ! -e /dev/dri/card0 ]; then
             ln -sf /dev/null /dev/dri/card0 2>/dev/null || true
@@ -176,11 +176,11 @@ XFCEXML
 fi
 
 # 4. Create Launch Wrapper
-echo "FluxLinux: Creating 'gpu-launch' wrapper..."
+echo "NativeCode: Creating 'gpu-launch' wrapper..."
 
 cat <<'EOF' > /usr/local/bin/gpu-launch
 #!/bin/bash
-# FluxLinux GPU Launcher
+# NativeCode GPU Launcher
 # Automatically detects and applies the correct GPU configuration
 
 MODE="MODE_PLACEHOLDER"

@@ -1,6 +1,6 @@
 #!/bin/bash
 # setup_customization_debian.sh
-# Applies "FluxLinux" branding and customization to Debian XFCE4 Desktop
+# Applies "NativeCode" branding and customization to Debian XFCE4 Desktop
 # Works for both Chroot and Proot environments (run as root, switches to user 'flux')
 
 CUSTOM_USER="flux"
@@ -13,7 +13,7 @@ ICON_DIR="/usr/share/icons"
 # Error Handler
 handle_error() {
     echo ""
-    echo "❌ FluxLinux Error: Script failed at step: $1"
+    echo "❌ NativeCode Error: Script failed at step: $1"
     echo "---------------------------------------------------"
     echo "Please check the error message above for details."
     echo "---------------------------------------------------"
@@ -21,20 +21,20 @@ handle_error() {
     exit 1
 }
 
-echo "FluxLinux: Starting XFCE4 Customization..."
+echo "NativeCode: Starting XFCE4 Customization..."
 
 # 1. Install Dependencies
-echo "FluxLinux: Installing customization tools..."
+echo "NativeCode: Installing customization tools..."
 export DEBIAN_FRONTEND=noninteractive
 apt update -y
 apt install -y xfce4-goodies curl fastfetch wget unzip fontconfig || handle_error "Dependency Installation"
 
 # 2. Deploy Assets (From GitHub Release debian-v1)
-ASSET_REPO="abhay-byte/fluxlinux"
+ASSET_REPO="abhay-byte/nativecode"
 ASSET_TAG="debian-v1"
 BASE_URL="https://github.com/$ASSET_REPO/releases/download/$ASSET_TAG"
 
-echo "FluxLinux: Downloading assets from $BASE_URL..."
+echo "NativeCode: Downloading assets from $BASE_URL..."
 
 # Helper to extract all contents
 extract_all_assets() {
@@ -59,7 +59,7 @@ extract_all_assets() {
 
 # 3. Theme Selection Prompt
 if [ -n "$FLUX_THEME" ]; then
-    echo "FluxLinux: Auto-applying Theme: $FLUX_THEME"
+    echo "NativeCode: Auto-applying Theme: $FLUX_THEME"
     if [ "$FLUX_THEME" == "light" ]; then
         THEME_CHOICE="2"
     else
@@ -75,33 +75,33 @@ else
 fi
 
 if [ "$THEME_CHOICE" == "2" ]; then
-    echo "FluxLinux: Light Mode Selected."
+    echo "NativeCode: Light Mode Selected."
     SEL_THEME="Space-light"
     SEL_ICON="Papirus" # Light icons
     SEL_CURSOR="Vimix-cursors" # Dark cursor for light theme (better contrast)
-    SEL_WALLPAPER="fluxlinux-light.png"
+    SEL_WALLPAPER="nativecode-light.png"
 else
-    echo "FluxLinux: Dark Mode Selected."
+    echo "NativeCode: Dark Mode Selected."
     SEL_THEME="Space-transparency"
     SEL_ICON="Papirus-Dark" # Dark icons
     SEL_CURSOR="Vimix-white-cursors" # White cursor for dark theme (better contrast)
-    SEL_WALLPAPER="fluxlinux-dark.png"
+    SEL_WALLPAPER="nativecode-dark.png"
 fi
 
 # Install Themes (Both)
-echo "FluxLinux: Installing Themes..."
+echo "NativeCode: Installing Themes..."
 mkdir -p "$THEME_DIR"
 extract_all_assets "$BASE_URL/theme.zip" "$THEME_DIR"
 
 # Install Icons
-echo "FluxLinux: Installing Icons..."
+echo "NativeCode: Installing Icons..."
 mkdir -p "$ICON_DIR"
 extract_all_assets "$BASE_URL/icons.zip" "$ICON_DIR"
 # Icons are assumed to have known names or we use the selected one directly.
 # SEL_ICON is already set based on theme choice.
 
 # Install Cursors (Both variants)
-echo "FluxLinux: Installing Cursors..."
+echo "NativeCode: Installing Cursors..."
 extract_all_assets "$BASE_URL/cursor.zip" "$ICON_DIR"
 
 # Wallpaper Setup
@@ -109,13 +109,13 @@ WALLPAPER_DIR="$USER_HOME/Pictures/Wallpapers"
 mkdir -p "$WALLPAPER_DIR"
 chown -R "$CUSTOM_USER:$CUSTOM_GROUP" "$USER_HOME/Pictures" 2>/dev/null
 
-echo "FluxLinux: Downloading Wallpaper..."
+echo "NativeCode: Downloading Wallpaper..."
 TEMP_WP_ZIP="/tmp/wallpaper.zip"
 wget -q --show-progress "$BASE_URL/wallpaper.zip" -O "$TEMP_WP_ZIP"
 unzip -o -j "$TEMP_WP_ZIP" -d "$WALLPAPER_DIR"
 rm "$TEMP_WP_ZIP"
-[ -f "$WALLPAPER_DIR/dark.png" ] && mv "$WALLPAPER_DIR/dark.png" "$WALLPAPER_DIR/fluxlinux-dark.png"
-[ -f "$WALLPAPER_DIR/light.png" ] && mv "$WALLPAPER_DIR/light.png" "$WALLPAPER_DIR/fluxlinux-light.png"
+[ -f "$WALLPAPER_DIR/dark.png" ] && mv "$WALLPAPER_DIR/dark.png" "$WALLPAPER_DIR/nativecode-dark.png"
+[ -f "$WALLPAPER_DIR/light.png" ] && mv "$WALLPAPER_DIR/light.png" "$WALLPAPER_DIR/nativecode-light.png"
 chown "$CUSTOM_USER:$CUSTOM_GROUP" "$WALLPAPER_DIR"/*
 
 
@@ -126,12 +126,12 @@ FONT_INSTALLED=false
 
 # Check if font already installed
 if fc-list | grep -qi "JetBrainsMono Nerd"; then
-    echo "FluxLinux: JetBrains Mono Nerd Font already installed."
+    echo "NativeCode: JetBrains Mono Nerd Font already installed."
     FONT_INSTALLED=true
 fi
 
 if [ "$FONT_INSTALLED" = false ]; then
-    echo "FluxLinux: Installing JetBrains Mono Nerd Font..."
+    echo "NativeCode: Installing JetBrains Mono Nerd Font..."
     
     # Create font directory
     mkdir -p "$FONT_DIR"
@@ -142,7 +142,7 @@ if [ "$FONT_INSTALLED" = false ]; then
     
     echo " - Downloading JetBrains Mono Nerd Font..."
     wget -q --show-progress "$NERD_FONT_URL" -O "$TEMP_ZIP" || {
-        echo "FluxLinux: Direct download failed, trying from release..."
+        echo "NativeCode: Direct download failed, trying from release..."
         wget -q --show-progress "$BASE_URL/font.zip" -O "$TEMP_ZIP" || handle_error "Font Download"
     }
     
@@ -170,21 +170,21 @@ if [ "$FONT_INSTALLED" = false ]; then
     
     # Verify installation
     if fc-list | grep -qi "JetBrainsMono Nerd"; then
-        echo "FluxLinux: ✓ JetBrains Mono Nerd Font installed successfully!"
+        echo "NativeCode: ✓ JetBrains Mono Nerd Font installed successfully!"
     else
-        echo "FluxLinux: ⚠ Font may not be properly registered. Checking installed files..."
+        echo "NativeCode: ⚠ Font may not be properly registered. Checking installed files..."
         ls -la "$FONT_DIR"
     fi
 fi
 # 4. Apply Settings for User 'flux'
 # Write directly to XML config files (dbus-launch creates ephemeral sessions that don't persist)
-echo "FluxLinux: Applying XFCE4 Settings..."
+echo "NativeCode: Applying XFCE4 Settings..."
 
 XFCONF_DIR="$USER_HOME/.config/xfce4/xfconf/xfce-perchannel-xml"
 mkdir -p "$XFCONF_DIR"
 
 # Generate xsettings.xml (Theme, Icons, Cursor, Fonts, Scaling)
-echo "FluxLinux: Writing xsettings.xml..."
+echo "NativeCode: Writing xsettings.xml..."
 cat <<EOF > "$XFCONF_DIR/xsettings.xml"
 <?xml version="1.0" encoding="UTF-8"?>
 
@@ -214,7 +214,7 @@ cat <<EOF > "$XFCONF_DIR/xsettings.xml"
 EOF
 
 # Generate xfwm4.xml (Window Manager Theme and Title Font)
-echo "FluxLinux: Writing xfwm4.xml..."
+echo "NativeCode: Writing xfwm4.xml..."
 cat <<EOF > "$XFCONF_DIR/xfwm4.xml"
 <?xml version="1.0" encoding="UTF-8"?>
 
@@ -237,7 +237,7 @@ cat <<EOF > "$XFCONF_DIR/xfwm4.xml"
 EOF
 
 # Generate xfce4-desktop.xml (Wallpaper)
-echo "FluxLinux: Writing xfce4-desktop.xml..."
+echo "NativeCode: Writing xfce4-desktop.xml..."
 WALLPAPER_PATH="$WALLPAPER_DIR/$SEL_WALLPAPER"
 MONITORS="monitor0 monitor1 monitorVNC-0 monitorbuiltin builtin monitorHDMI-A-0 monitorVirtual-0 monitorVirtual1"
 
@@ -276,11 +276,11 @@ EOF
 
 # Fix ownership
 chown -R "$CUSTOM_USER:$CUSTOM_GROUP" "$XFCONF_DIR"
-echo "FluxLinux: XFCE4 settings applied successfully!"
+echo "NativeCode: XFCE4 settings applied successfully!"
 
 # Generate xfce4-keyboard-shortcuts.xml (Custom Keyboard Shortcuts)
 # Note: Angle brackets in key names must be XML-escaped as &lt; and &gt;
-echo "FluxLinux: Writing keyboard shortcuts..."
+echo "NativeCode: Writing keyboard shortcuts..."
 cat <<'SHORTCUTEOF' > "$XFCONF_DIR/xfce4-keyboard-shortcuts.xml"
 <?xml version="1.1" encoding="UTF-8"?>
 
@@ -413,11 +413,11 @@ cat <<'SHORTCUTEOF' > "$XFCONF_DIR/xfce4-keyboard-shortcuts.xml"
 </channel>
 SHORTCUTEOF
 
-echo "FluxLinux: Keyboard shortcuts configured!"
+echo "NativeCode: Keyboard shortcuts configured!"
 
 
 # 5. Configure XFCE4 Panel
-echo "FluxLinux: Configuring Panel..."
+echo "NativeCode: Configuring Panel..."
 PANEL_CONFIG_DIR="$USER_HOME/.config/xfce4/xfconf/xfce-perchannel-xml"
 mkdir -p "$PANEL_CONFIG_DIR"
 
@@ -678,7 +678,7 @@ chown "$CUSTOM_USER:$CUSTOM_GROUP" "$USER_HOME/.config/info.sh"
 
 
 # 6. Configure Terminal (Direct Config File)
-echo "FluxLinux: Configuring Terminal..."
+echo "NativeCode: Configuring Terminal..."
 TERM_CONFIG_DIR="$USER_HOME/.config/xfce4/terminal"
 mkdir -p "$TERM_CONFIG_DIR"
 cat <<EOF > "$TERM_CONFIG_DIR/terminalrc"
@@ -710,19 +710,19 @@ chown -R "$CUSTOM_USER:$CUSTOM_GROUP" "$USER_HOME/.config"
 
 
 # 7. Configure Zsh and Terminal Enhancements
-echo "FluxLinux: Configuring Zsh and Terminal..."
+echo "NativeCode: Configuring Zsh and Terminal..."
 
 # Install zsh if not already installed
-echo "FluxLinux: Installing zsh..."
+echo "NativeCode: Installing zsh..."
 apt-get install -y zsh 2>/dev/null
 
 # Install Oh My Zsh for flux user
 # Install Oh My Zsh for flux user
-echo "FluxLinux: Installing Oh My Zsh..."
+echo "NativeCode: Installing Oh My Zsh..."
 
 # 1. Check for corrupt installation (folder exists but missing core script)
 if [ -d "$USER_HOME/.oh-my-zsh" ] && [ ! -f "$USER_HOME/.oh-my-zsh/oh-my-zsh.sh" ]; then
-    echo "FluxLinux: Detected corrupt Oh My Zsh installation. Removing..."
+    echo "NativeCode: Detected corrupt Oh My Zsh installation. Removing..."
     rm -rf "$USER_HOME/.oh-my-zsh"
 fi
 
@@ -735,18 +735,18 @@ fi
 ZSH_CUSTOM="$USER_HOME/.oh-my-zsh/custom"
 
 # Install zsh plugins
-echo "FluxLinux: Installing Zsh plugins..."
+echo "NativeCode: Installing Zsh plugins..."
 su -s /bin/bash - "$CUSTOM_USER" -c "git clone https://github.com/zsh-users/zsh-autosuggestions '$ZSH_CUSTOM/plugins/zsh-autosuggestions'" 2>/dev/null
 su -s /bin/bash - "$CUSTOM_USER" -c "git clone https://github.com/zsh-users/zsh-syntax-highlighting '$ZSH_CUSTOM/plugins/zsh-syntax-highlighting'" 2>/dev/null
 su -s /bin/bash - "$CUSTOM_USER" -c "git clone --depth 1 https://github.com/marlonrichert/zsh-autocomplete.git '$ZSH_CUSTOM/plugins/zsh-autocomplete'" 2>/dev/null
 
 # Install agnosterzak theme
-echo "FluxLinux: Installing agnosterzak theme..."
+echo "NativeCode: Installing agnosterzak theme..."
 su -s /bin/bash - "$CUSTOM_USER" -c "mkdir -p '$ZSH_CUSTOM/themes'"
 su -s /bin/bash - "$CUSTOM_USER" -c "curl -fsSL https://raw.githubusercontent.com/zakaziko99/agnosterzak-ohmyzsh-theme/master/agnosterzak.zsh-theme -o '$ZSH_CUSTOM/themes/agnosterzak.zsh-theme'" 2>/dev/null
 
 # Install pokemon-colorscripts
-echo "FluxLinux: Installing pokemon-colorscripts..."
+echo "NativeCode: Installing pokemon-colorscripts..."
 POKEMON_TEMP="/tmp/pokemon-colorscripts"
 rm -rf "$POKEMON_TEMP"
 git clone https://gitlab.com/phoneybadger/pokemon-colorscripts.git "$POKEMON_TEMP" 2>/dev/null
@@ -755,7 +755,7 @@ cd - > /dev/null
 rm -rf "$POKEMON_TEMP"
 
 # Configure .zshrc
-echo "FluxLinux: Configuring .zshrc..."
+echo "NativeCode: Configuring .zshrc..."
 ZSHRC="$USER_HOME/.zshrc"
 
 # Check if .zshrc is valid (loading oh-my-zsh)
@@ -764,7 +764,7 @@ ZSHRC="$USER_HOME/.zshrc"
 # - Backgrounded visuals with &! (async, don't block shell startup)
 # - DISABLE_AUTO_UPDATE / DISABLE_UPDATE_PROMPT (no prompts on launch)
 # - ZSH_DISABLE_COMPFIX (no compaudit, faster init)
-echo "FluxLinux: Writing optimized .zshrc..."
+echo "NativeCode: Writing optimized .zshrc..."
 cat > "$ZSHRC" << 'ZSHEOF'
 # PATH setup - local bin, npm global modules
 export PATH="$HOME/.local/bin:/opt/nodejs/bin:$PATH"
@@ -799,11 +799,11 @@ chsh -s /bin/zsh "$CUSTOM_USER" 2>/dev/null
 # Fix ownership
 chown -R "$CUSTOM_USER:$CUSTOM_GROUP" "$USER_HOME/.oh-my-zsh" "$USER_HOME/.zshrc" "$USER_HOME/.local" 2>/dev/null
 
-echo "FluxLinux: Terminal configuration complete!"
+echo "NativeCode: Terminal configuration complete!"
 
 
 # 8. Reload XFCE Daemons (Force restart like chroot script does)
-echo "FluxLinux: Reloading Desktop..."
+echo "NativeCode: Reloading Desktop..."
 
 # Kill existing XFCE processes to force reload (matches chroot pattern)
 su -s /bin/bash - "$CUSTOM_USER" -c "killall -9 xfdesktop xfwm4 xfsettingsd" 2>/dev/null
@@ -817,6 +817,6 @@ sleep 0.5
 su -s /bin/bash - "$CUSTOM_USER" -c "DISPLAY=:0 nohup xfsettingsd > /dev/null 2>&1 &" 2>/dev/null
 sleep 1
 
-echo "FluxLinux: Customization Complete!"
+echo "NativeCode: Customization Complete!"
 echo "------------------------------------------------"
 read -p "Press Enter to close..."

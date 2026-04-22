@@ -6,7 +6,7 @@
 # Error Handler
 handle_error() {
     echo ""
-    echo "❌ FluxLinux Error: Script failed at step: $1"
+    echo "❌ NativeCode Error: Script failed at step: $1"
     echo "---------------------------------------------------"
     echo "Please check the error message above for details."
     echo "---------------------------------------------------"
@@ -32,12 +32,12 @@ update_shell_path() {
     fi
 }
 
-echo "FluxLinux: Setting up Data Science & AI Environment..."
+echo "NativeCode: Setting up Data Science & AI Environment..."
 TARGET_USER="flux"
 TARGET_GROUP="users"
 
 # 1. System Dependencies
-echo "FluxLinux: Installing System Dependencies..."
+echo "NativeCode: Installing System Dependencies..."
 export DEBIAN_FRONTEND=noninteractive
 apt update -y
 # Dependencies for R, Python scientific stack, OpenCV, HDF5
@@ -49,7 +49,7 @@ apt install -y curl wget unzip zip xz-utils tar build-essential git \
     || handle_error "System Dependencies"
 
 # 2. Python Data Science Environment
-echo "FluxLinux: Setting up Python Environment (data_env)..."
+echo "NativeCode: Setting up Python Environment (data_env)..."
 VENV_DIR="/home/$TARGET_USER/data_env"
 
 if [ ! -d "$VENV_DIR" ]; then
@@ -97,7 +97,7 @@ Categories=Development;Science;
 EOF
 
 # 3. Julia Language (LTS/Stable)
-echo "FluxLinux: Installing Julia Language..."
+echo "NativeCode: Installing Julia Language..."
 JULIA_DIR="/opt/julia"
 if [ ! -d "$JULIA_DIR" ]; then
     mkdir -p "$JULIA_DIR"
@@ -141,7 +141,7 @@ else
 fi
 
 # 4. PyCharm Community
-echo "FluxLinux: Installing PyCharm Community..."
+echo "NativeCode: Installing PyCharm Community..."
 PYCHARM_DIR="/opt/pycharm"
 if [ ! -d "$PYCHARM_DIR" ]; then
     mkdir -p "$PYCHARM_DIR"
@@ -182,7 +182,7 @@ else
 fi
 
 # 5. Spyder IDE
-echo "FluxLinux: Installing Spyder IDE..."
+echo "NativeCode: Installing Spyder IDE..."
 # apt version is simplest/safest
 # pip install spyder is newer 6.0? but requires PyQt5 matching.
 # Let's use apt for stability or pip for latest? User wants latest.
@@ -191,17 +191,17 @@ echo "FluxLinux: Installing Spyder IDE..."
 apt install -y spyder || echo " [⚠️] Spyder install failed"
 
 # 6. RStudio (Optional check)
-echo "FluxLinux: Checking RStudio..."
+echo "NativeCode: Checking RStudio..."
 # RStudio on ARM64 Linux is tricky. Often requires manual deb specific to OS version.
 # Skipping auto-install to avoid breakage, but R is installed.
 echo " [ℹ️] R is installed. RStudio is omitted due to lack of stable ARM64 builds for Debian Trixie (Use VS Code or R terminal)."
 
 # 7. Final Permissions
-echo "FluxLinux: Applying permissions..."
+echo "NativeCode: Applying permissions..."
 chown -R $TARGET_USER:$TARGET_GROUP "/home/$TARGET_USER"
 
 # Add to PATH for easy access
-echo "FluxLinux: Configuring Shell Access..."
+echo "NativeCode: Configuring Shell Access..."
 update_shell_path "/home/$TARGET_USER/.bashrc" "/home/$TARGET_USER/data_env/bin" "Data Science Environment"
 
 # Only update zshrc if zsh is installed
@@ -212,7 +212,7 @@ fi
 # 8. Verification
 verify_installation() {
     echo ""
-    echo "🔎 FluxLinux: Verifying Installations..."
+    echo "🔎 NativeCode: Verifying Installations..."
     echo "------------------------------------------------"
     
     # Python

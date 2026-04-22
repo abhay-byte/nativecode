@@ -24,4 +24,4 @@
 }
 
 # Keep app classes
--keep class com.zenithblue.fluxlinux.** { *; }
+-keep class com.ivarna.nativecode.** { *; }

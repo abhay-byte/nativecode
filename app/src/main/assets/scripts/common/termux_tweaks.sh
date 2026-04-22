@@ -3,7 +3,7 @@
 # Enhance Termux with Oh My Zsh, themes, fonts, and fastfetch
 # Based on: https://github.com/abhay-byte/Linux_Setup
 
-echo "🎨 FluxLinux: Enhancing Termux Environment..."
+echo "🎨 NativeCode: Enhancing Termux Environment..."
 
 install_ohmyzsh() {
     echo "🐚 Installing Oh My Zsh..."
@@ -181,9 +181,9 @@ install_nerd_font
 configure_fastfetch
 
 echo ""
-echo "🎉 FluxLinux: Termux enhancement complete!"
+echo "🎉 NativeCode: Termux enhancement complete!"
 echo "🔄 Restart Termux to see all changes."
 
 # Create marker file to track tweaks application
-touch "$HOME/.fluxlinux/termux_tweaks.done"
-am start -a android.intent.action.VIEW -d "fluxlinux://callback?result=success&name=termux_tweaks"
+touch "$HOME/.nativecode/termux_tweaks.done"
+am start -a android.intent.action.VIEW -d "nativecode://callback?result=success&name=termux_tweaks"

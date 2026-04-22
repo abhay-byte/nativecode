@@ -401,7 +401,7 @@ EOF
         
         # Download RootFS (Debian 13 Trixie)
         # URL provided by update request
-        download_file "$DEBIANPATH" "rootfs.tar.xz" "https://github.com/abhay-byte/fluxlinux/releases/download/rootfs/debian_13_rootfs.tar.xz"
+        download_file "$DEBIANPATH" "rootfs.tar.xz" "https://github.com/abhay-byte/nativecode/releases/download/rootfs/debian_13_rootfs.tar.xz"
         
         # Extract
         extract_file "$DEBIANPATH"
@@ -463,10 +463,10 @@ EOF
     cat <<EOFGUI > "$GUI_LAUNCHER"
 #!/bin/sh
 # HyperOS-Compatible X11 Launcher with Debug Logging
-# FluxLinux - Debian 13 Chroot GUI Starter
+# NativeCode - Debian 13 Chroot GUI Starter
 
 echo "========================================"
-echo "FluxLinux: Starting Debian 13 GUI"
+echo "NativeCode: Starting Debian 13 GUI"
 echo "HyperOS Compatibility Mode"
 echo "========================================"
 
@@ -571,7 +571,7 @@ if pgrep -f virgl_test_server >/dev/null; then
     ls -la \$TARGET_TERMUX_PREFIX/tmp/.virgl_test 2>/dev/null || echo "[WARN] VirGL socket not visible"
 else
     echo "[!] VirGL not running - GPU acceleration will NOT work"
-    echo "[!] Please restart the GUI from FluxLinux app"
+    echo "[!] Please restart the GUI from NativeCode app"
 fi
 
 echo ""
@@ -590,7 +590,7 @@ EOFGUI
 # stop_debian13_gui.sh - Stop Debian 13 Chroot GUI
 
 echo "========================================"
-echo "FluxLinux: Stopping Debian 13 Chroot GUI"
+echo "NativeCode: Stopping Debian 13 Chroot GUI"
 echo "========================================"
 
 DEBIANPATH="/data/local/tmp/chrootDebian13"
@@ -746,11 +746,11 @@ EOF
     chmod +x "$ROOT_CLI_SCRIPT"
     success "Root CLI Launcher created: $ROOT_CLI_SCRIPT"
     
-    echo "FluxLinux: Chroot Setup Complete!"
+    echo "NativeCode: Chroot Setup Complete!"
     
     # --- NOTIFY APP ---
-    progress "Notifying FluxLinux App..."
-    am start -a android.intent.action.VIEW -d "fluxlinux://callback?result=success&name=distro_install_debian13_chroot" >/dev/null 2>&1
+    progress "Notifying NativeCode App..."
+    am start -a android.intent.action.VIEW -d "nativecode://callback?result=success&name=distro_install_debian13_chroot" >/dev/null 2>&1
 }
 
 main

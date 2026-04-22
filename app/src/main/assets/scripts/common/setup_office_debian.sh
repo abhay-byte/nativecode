@@ -7,7 +7,7 @@
 # Error Handler
 handle_error() {
     echo ""
-    echo "❌ FluxLinux Error: Script failed at step: $1"
+    echo "❌ NativeCode Error: Script failed at step: $1"
     echo "---------------------------------------------------"
     echo "Please check the error message above for details."
     echo "---------------------------------------------------"
@@ -15,11 +15,11 @@ handle_error() {
     exit 1
 }
 
-echo "FluxLinux: Setting up Office Productivity Environment..."
+echo "NativeCode: Setting up Office Productivity Environment..."
 echo "Target: Debian 13 (Trixie) - ARM64"
 
 # 1. System Dependencies
-echo "FluxLinux: Installing Dependencies..."
+echo "NativeCode: Installing Dependencies..."
 export DEBIAN_FRONTEND=noninteractive
 apt update -y
 
@@ -35,12 +35,12 @@ apt install -y \
 # If setup_webdev_debian.sh ran, nodejs includes npm.
 # If not, Debian split packages might need explicit npm.
 if ! command -v npm >/dev/null; then
-    echo "FluxLinux: NPM not found (bundled), installing explicitly..."
+    echo "NativeCode: NPM not found (bundled), installing explicitly..."
     apt install -y npm || echo " [⚠️] NPM install warning (might be bundled)"
 fi
 
 # 2. LibreOffice Suite
-echo "FluxLinux: Installing LibreOffice Suite..."
+echo "NativeCode: Installing LibreOffice Suite..."
 # Use --no-install-recommends to avoid large optional packages like fonts-noto-extra
 # which can fail in proot environments due to resource constraints
 apt install -y --no-install-recommends \
@@ -57,14 +57,14 @@ apt install -y --no-install-recommends \
     }
 
 # 3. Email & PIM
-echo "FluxLinux: Installing Email & Organization Tools..."
+echo "NativeCode: Installing Email & Organization Tools..."
 # Thunderbird: Email client
 apt install -y --no-install-recommends \
     thunderbird \
     || handle_error "Thunderbird Installation"
 
 # 4. PDF Tools
-echo "FluxLinux: Installing PDF Tools..."
+echo "NativeCode: Installing PDF Tools..."
 # Evince: Document Viewer
 # Xournal++: Note taking & PDF Annotation
 apt install -y --no-install-recommends \
@@ -73,13 +73,13 @@ apt install -y --no-install-recommends \
     || handle_error "PDF Tools Installation"
 
 # 5. Optional: Try to install extra fonts (non-fatal if fails)
-echo "FluxLinux: Installing additional fonts (optional)..."
+echo "NativeCode: Installing additional fonts (optional)..."
 apt install -y fonts-noto 2>/dev/null || echo " [⚠️] Optional fonts skipped (proot limitation)"
 
 # 6. Verification
 verify_installation() {
     echo ""
-    echo "🔎 FluxLinux: Verifying Installations..."
+    echo "🔎 NativeCode: Verifying Installations..."
     echo "------------------------------------------------"
     
     if command -v libreoffice >/dev/null; then echo " [✅] LibreOffice"; else echo " [❌] LibreOffice Missing"; fi

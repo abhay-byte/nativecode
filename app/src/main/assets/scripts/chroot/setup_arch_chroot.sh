@@ -327,7 +327,7 @@ EOF
     cleanup_mounts
     
     # Notify App
-    am start -a android.intent.action.VIEW -d "fluxlinux://callback?result=success&name=distro_install_arch_chroot" >/dev/null 2>&1
+    am start -a android.intent.action.VIEW -d "nativecode://callback?result=success&name=distro_install_arch_chroot" >/dev/null 2>&1
 }
 
 main

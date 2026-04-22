@@ -5,7 +5,7 @@
 # Error Handler Function to pause and let user read logs
 handle_error() {
     echo ""
-    echo "❌ FluxLinux Error: Script failed at step: $1"
+    echo "❌ NativeCode Error: Script failed at step: $1"
     echo "---------------------------------------------------"
     echo "Please check the error message above."
     echo "You can copy the error output to share with support."
@@ -14,7 +14,7 @@ handle_error() {
     exit 1
 }
 
-echo "FluxLinux: Setting up Web Development Environment..."
+echo "NativeCode: Setting up Web Development Environment..."
 
 # PRE-FLIGHT CHECK: Clean up broken VS Code repo if present
 # This prevents 'apt update' from failing immediately due to parsing errors
@@ -22,7 +22,7 @@ rm -f /etc/apt/sources.list.d/vscode.list
 
 # PRE-FLIGHT CHECK: Clean up old NodeSource repo and keys
 # The NodeSource repository signature is invalid and causes apt update to fail
-echo "FluxLinux: Cleaning up old NodeSource repository..."
+echo "NativeCode: Cleaning up old NodeSource repository..."
 rm -f /etc/apt/sources.list.d/nodesource.list
 rm -f /etc/apt/sources.list.d/nodesource.list.save
 rm -f /usr/share/keyrings/nodesource.gpg
@@ -35,7 +35,7 @@ apt update -y || handle_error "System Update"
 apt install -y curl wget git build-essential gnupg || handle_error "Basic Tools Installation"
 
 # 2. Install Browsers (Firefox Latest & Chromium)
-echo "FluxLinux: Installing Latest Firefox (Mozilla Repo)..."
+echo "NativeCode: Installing Latest Firefox (Mozilla Repo)..."
 
 # Setup Mozilla Official Repo (Supports ARM64)
 mkdir -p /etc/apt/keyrings
@@ -60,7 +60,7 @@ NODE_VER="v25.5.0"
 NODE_DIST="node-${NODE_VER}-linux-arm64"
 NODE_URL="https://nodejs.org/dist/${NODE_VER}/${NODE_DIST}.tar.xz"
 
-echo "FluxLinux: Installing/Checking Node.js ${NODE_VER}..."
+echo "NativeCode: Installing/Checking Node.js ${NODE_VER}..."
 INSTALL_NODE=false
 
 # Check if installed
@@ -98,7 +98,7 @@ if [ "$INSTALL_NODE" = true ]; then
 fi
 
 # Fix Global NPM Path (Ensure modules are found)
-echo "FluxLinux: Configuring Node.js Environment..."
+echo "NativeCode: Configuring Node.js Environment..."
 
 # Update .bashrc for current user
 BASHRC="/home/flux/.bashrc"
@@ -114,14 +114,14 @@ echo 'export PATH=$PATH:/opt/nodejs/bin' > /etc/profile.d/nodejs.sh
 chmod 644 /etc/profile.d/nodejs.sh
 
 # 4. Install Python
-echo "FluxLinux: Installing Python..."
+echo "NativeCode: Installing Python..."
 apt install -y python3 python3-pip python3-venv || handle_error "Python Installation"
 
 # 5. Install VS Code (Official Tarball)
 # We use the tarball method to avoid 'dpkg' crashes (double free) likely caused by 
 # Debian Trixie's new glibc/dpkg version running under Proot.
 if ! command -v code &> /dev/null; then
-    echo "FluxLinux: Installing VS Code (Tarball Method)..."
+    echo "NativeCode: Installing VS Code (Tarball Method)..."
     
     # Clean up broken repo config/files
     rm -f /etc/apt/sources.list.d/vscode.list
@@ -138,7 +138,7 @@ if ! command -v code &> /dev/null; then
     mkdir -p /usr/share/code
     
     # Extract
-    echo "FluxLinux: Extracting VS Code..."
+    echo "NativeCode: Extracting VS Code..."
     tar -xzf /tmp/vscode.tar.gz -C /usr/share/code --strip-components=1 || handle_error "VS Code Extraction"
     
     # Link binary
@@ -174,12 +174,12 @@ EOF
     # We'll just rely on system fallback or generic icon if missing, downloading icons manually is flaky.
     
 else
-    echo "FluxLinux: VS Code already installed."
+    echo "NativeCode: VS Code already installed."
 fi
 
 # Configure VS Code settings to disable extension signature verification
 # This runs every time to ensure settings are always applied
-echo "FluxLinux: Configuring VS Code settings..."
+echo "NativeCode: Configuring VS Code settings..."
 mkdir -p /home/flux/.config/Code/User
 cat <<'VSCODE_SETTINGS' > /home/flux/.config/Code/User/settings.json
 {
@@ -189,7 +189,7 @@ VSCODE_SETTINGS
 chown -R flux:$(id -gn flux 2>/dev/null || echo "flux") /home/flux/.config
 
 # 6. Install Antigravity Package
-echo "FluxLinux: Installing Antigravity..."
+echo "NativeCode: Installing Antigravity..."
 mkdir -p /etc/apt/keyrings
 curl -fsSL https://us-central1-apt.pkg.dev/doc/repo-signing-key.gpg | \
   gpg --dearmor --yes -o /etc/apt/keyrings/antigravity-repo-key.gpg || handle_error "Antigravity Key"
@@ -200,22 +200,22 @@ echo "deb [signed-by=/etc/apt/keyrings/antigravity-repo-key.gpg] https://us-cent
 apt update -y || handle_error "Antigravity Repo Update"
 
 # Manually download OR use local file to bypass dpkg crash
-echo "FluxLinux: Installing Antigravity..."
+echo "NativeCode: Installing Antigravity..."
 cd /tmp
 
 # Check if user downloaded it manually (Best chance for correct ARM64 Architecture)
 LOCAL_DEB=$(find /home/flux/Downloads -name "antigravity*.deb" | head -n 1)
 
 if [ -f "$LOCAL_DEB" ]; then
-    echo "FluxLinux: Found manual download: $LOCAL_DEB"
+    echo "NativeCode: Found manual download: $LOCAL_DEB"
     cp "$LOCAL_DEB" .
 else
-    echo "FluxLinux: Downloading from repository (attempting arm64)..."
+    echo "NativeCode: Downloading from repository (attempting arm64)..."
     # Try to force arm64 download in case repo defaults to amd64
     apt download antigravity:arm64 || apt download antigravity || handle_error "Antigravity Download"
 fi
 
-echo "FluxLinux: Extracting Antigravity..."
+echo "NativeCode: Extracting Antigravity..."
 # Find the downloaded deb file
 DEB_FILE=$(ls antigravity*.deb | head -n 1)
 
@@ -230,7 +230,7 @@ if [ -f "$DEB_FILE" ]; then
          tar -xvf data.tar.zst -C / || handle_error "Antigravity Extraction (zst)"
         
     elif [ -f data.tar.xz ]; then
-        echo "FluxLinux: Using Python to extract xz archive (bypass tar crash)..."
+        echo "NativeCode: Using Python to extract xz archive (bypass tar crash)..."
         # Extract to temp dir first to find where the files are hiding
         mkdir -p /tmp/antigravity_pkg
         python3 -c "import tarfile; t=tarfile.open('data.tar.xz'); t.extractall('/tmp/antigravity_pkg'); t.close()" || handle_error "Antigravity Extraction"
@@ -247,10 +247,10 @@ if [ -f "$DEB_FILE" ]; then
         
         # The App Root is the parent of 'resources'
         APP_ROOT=$(dirname "$RESOURCES_DIR")
-        echo "FluxLinux: Detected App Root at $APP_ROOT"
+        echo "NativeCode: Detected App Root at $APP_ROOT"
         
         # STANDARDIZE: Move everything to /usr/share/antigravity (User Preference)
-        echo "FluxLinux: moving to /usr/share/antigravity..."
+        echo "NativeCode: moving to /usr/share/antigravity..."
         rm -rf /usr/share/antigravity
         mkdir -p /usr/share/antigravity
         mv "$APP_ROOT"/* /usr/share/antigravity/
@@ -269,7 +269,7 @@ if [ -f "$DEB_FILE" ]; then
     rm -f "$DEB_FILE" debian-binary control.tar* data.tar*
     
     # POST-INSTALL FIXES (Since we skipped dpkg)
-    echo "FluxLinux: Applying Runtime Fixes..."
+    echo "NativeCode: Applying Runtime Fixes..."
     
     # 1. Create Wrapper Script (Fixes path issues, libffmpeg, Sandbox, & Crash)
     cat <<EOF > /usr/bin/antigravity
@@ -327,5 +327,5 @@ else
     handle_error "Antigravity .deb not found"
 fi
 
-echo "FluxLinux: Web Development Setup Complete!"
+echo "NativeCode: Web Development Setup Complete!"
 echo "Note: Launch VS Code with 'code' in terminal (alias added)."

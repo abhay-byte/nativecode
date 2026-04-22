@@ -4,9 +4,9 @@
 # Mirrors what setup_debian_family.sh does, but installs KDE Plasma instead of XFCE4
 
 DISTRO_NAME="${1:-debian}"
-LOG_FILE="/tmp/fluxlinux_kde_install.log"
+LOG_FILE="/tmp/nativecode_kde_install.log"
 
-echo "FluxLinux: Configuring ${DISTRO_NAME} with KDE Plasma..."
+echo "NativeCode: Configuring ${DISTRO_NAME} with KDE Plasma..."
 
 # Redirect all output to log
 exec > >(tee -a "$LOG_FILE") 2>&1
@@ -15,19 +15,19 @@ exec > >(tee -a "$LOG_FILE") 2>&1
 handle_error() {
     local STEP="$1"
     echo ""
-    echo "❌ FluxLinux KDE Error: Script failed at step: $STEP"
+    echo "❌ NativeCode KDE Error: Script failed at step: $STEP"
     echo "──────────────────────────────────────────────────────"
     echo "Log saved to: $LOG_FILE"
     echo ""
     echo "Please copy the log content and send it to the developer:"
     echo "  Email: abhay02delhi@gmail.com"
-    echo "  GitHub: https://github.com/abhay-byte/fluxlinux/issues"
+    echo "  GitHub: https://github.com/abhay-byte/nativecode/issues"
     echo "──────────────────────────────────────────────────────"
     read -p "Press Enter to acknowledge error and exit..."
 
-    # Notify FluxLinux app of failure
+    # Notify NativeCode app of failure
     am start -a android.intent.action.VIEW \
-        -d "fluxlinux://callback?result=failure&name=kde_plasma_install_${DISTRO_NAME}" \
+        -d "nativecode://callback?result=failure&name=kde_plasma_install_${DISTRO_NAME}" \
         2>/dev/null || true
 
     exit 1
@@ -99,15 +99,15 @@ systemctl disable sddm 2>/dev/null || true
 
 # 7. Mark as KDE-capable environment
 echo "[7/7] Marking installation complete..."
-mkdir -p /home/flux/.fluxlinux
-touch /home/flux/.fluxlinux/kde_installed
-chown -R flux:flux /home/flux/.fluxlinux
+mkdir -p /home/flux/.nativecode
+touch /home/flux/.nativecode/kde_installed
+chown -R flux:flux /home/flux/.nativecode
 
 echo ""
-echo "✅ FluxLinux: KDE Plasma base setup for ${DISTRO_NAME} complete!"
+echo "✅ NativeCode: KDE Plasma base setup for ${DISTRO_NAME} complete!"
 echo "Log saved at: $LOG_FILE"
 
-# Notify FluxLinux app of success
+# Notify NativeCode app of success
 am start -a android.intent.action.VIEW \
-    -d "fluxlinux://callback?result=success&name=kde_plasma_install_${DISTRO_NAME}" \
+    -d "nativecode://callback?result=success&name=kde_plasma_install_${DISTRO_NAME}" \
     2>/dev/null || true

@@ -6,7 +6,7 @@
 # Error Handler
 handle_error() {
     echo ""
-    echo "❌ FluxLinux Error: Script failed at step: $1"
+    echo "❌ NativeCode Error: Script failed at step: $1"
     echo "---------------------------------------------------"
     echo "Please check the error message above for details."
     echo "---------------------------------------------------"
@@ -14,11 +14,11 @@ handle_error() {
     exit 1
 }
 
-echo "FluxLinux: Setting up Graphic Design Environment..."
+echo "NativeCode: Setting up Graphic Design Environment..."
 echo "Target: Debian 13 (Trixie) - ARM64"
 
 # 1. System Dependencies
-echo "FluxLinux: Installing Dependencies..."
+echo "NativeCode: Installing Dependencies..."
 export DEBIAN_FRONTEND=noninteractive
 apt update -y
 
@@ -35,7 +35,7 @@ apt install -y \
     || handle_error "Dependencies & Fonts"
 
 # 2. Raster & Vector Editors
-echo "FluxLinux: Installing Design Tools..."
+echo "NativeCode: Installing Design Tools..."
 
 # GIMP: The GNU Image Manipulation Program (Raster)
 # Inkscape: Professional Vector Graphics Editor
@@ -47,7 +47,7 @@ apt install -y \
     || handle_error "GIMP/Inkscape/Krita Installation"
 
 # 3. Photography & Publishing
-echo "FluxLinux: Installing Photo & Publishing Tools..."
+echo "NativeCode: Installing Photo & Publishing Tools..."
 
 # Darktable: RAW Developer & Lightroom alternative
 # Scribus: Desktop Publishing (Indesign alternative)
@@ -57,7 +57,7 @@ apt install -y \
     || handle_error "Darktable/Scribus Installation"
 
 # 4. 3D & Utilities
-echo "FluxLinux: Installing 3D & Utility Tools..."
+echo "NativeCode: Installing 3D & Utility Tools..."
 
 # Blender: 3D Creation Suite (heavy but powerful)
 # ImageMagick: CLI image manipulation (convert, mogrify)
@@ -71,7 +71,7 @@ apt install -y \
 # 5. Verification
 verify_installation() {
     echo ""
-    echo "🔎 FluxLinux: Verifying Installations..."
+    echo "🔎 NativeCode: Verifying Installations..."
     echo "------------------------------------------------"
     
     # Editors
@@ -93,5 +93,5 @@ verify_installation() {
 
 verify_installation
 
-echo "Note: For best performance with Blender/Krita, enable Hardware Acceleration (VirGL) in FluxLinux settings."
+echo "Note: For best performance with Blender/Krita, enable Hardware Acceleration (VirGL) in NativeCode settings."
 read -p "Press Enter to close..."

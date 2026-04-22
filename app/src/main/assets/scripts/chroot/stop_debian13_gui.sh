@@ -3,7 +3,7 @@
 # Run this from Android Root Shell
 
 echo "========================================"
-echo "FluxLinux: Stopping Debian 13 Chroot GUI"
+echo "NativeCode: Stopping Debian 13 Chroot GUI"
 echo "========================================"
 
 DEBIANPATH="/data/local/tmp/chrootDebian13"

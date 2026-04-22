@@ -6,7 +6,7 @@
 # Error Handler
 handle_error() {
     echo ""
-    echo "❌ FluxLinux Error: Script failed at step: $1"
+    echo "❌ NativeCode Error: Script failed at step: $1"
     echo "---------------------------------------------------"
     echo "Please check the error message above for details."
     echo "---------------------------------------------------"
@@ -38,12 +38,12 @@ update_shell_path() {
     fi
 }
 
-echo "FluxLinux: Setting up General Software Engineering Environment..."
+echo "NativeCode: Setting up General Software Engineering Environment..."
 TARGET_USER="flux"
 TARGET_GROUP=$(id -gn $TARGET_USER 2>/dev/null || echo "flux")
 
 # 1. Install System Dependencies & C/C++ Stack
-echo "FluxLinux: Installing System Dependencies & C/C++ Tools..."
+echo "NativeCode: Installing System Dependencies & C/C++ Tools..."
 export DEBIAN_FRONTEND=noninteractive
 # Core dev tools + Dependencies for LunarVim (git, make, pip, python3, ripgrep)
 # We use NodeSource for newer Node.js (v23) avoids conflicts with Debian's split npm package
@@ -67,13 +67,13 @@ apt install -y git wget unzip zip xz-utils tar build-essential \
     || handle_error "Dependencies Installation"
 
 # 2. Install Rust (Rustup)
-echo "FluxLinux: Installing Rust (via rustup)..."
+echo "NativeCode: Installing Rust (via rustup)..."
 if ! command -v rustup >/dev/null; then
     # Install for the target user
     echo " - Installing Rust for $TARGET_USER..."
     su - "$TARGET_USER" -c "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y" || handle_error "Rust Installation"
 else
-    echo "FluxLinux: Rust already installed."
+    echo "NativeCode: Rust already installed."
 fi
 # Ensure Cargo bin is in path (Rustup usually handles profile, but zsh check)
 update_shell_path "/home/$TARGET_USER/.zshrc" "\$HOME/.cargo/bin" "Rust Cargo"
@@ -82,7 +82,7 @@ update_shell_path "/home/$TARGET_USER/.zshrc" "\$HOME/.cargo/bin" "Rust Cargo"
 GO_ROOT="/opt/go"
 GO_VER="1.23.4"
 if [ ! -d "$GO_ROOT" ]; then
-    echo "FluxLinux: Installing Go $GO_VER..."
+    echo "NativeCode: Installing Go $GO_VER..."
     
     GO_URL="https://go.dev/dl/go${GO_VER}.linux-arm64.tar.gz"
     wget -q --show-progress "$GO_URL" -O /tmp/go.tar.gz || handle_error "Go Download"
@@ -112,7 +112,7 @@ if [ ! -d "$GO_ROOT" ]; then
     
     echo " [✅] Go installed"
 else
-    echo "FluxLinux: Go already installed."
+    echo "NativeCode: Go already installed."
 fi
 
 # Ensure Go env is persistent for both shells (Idempotent)
@@ -132,7 +132,7 @@ done
 export PATH=$PATH:/opt/go/bin
 
 # 4. Install Lazygit (Go)
-echo "FluxLinux: Installing Lazygit (for LunarVim)..."
+echo "NativeCode: Installing Lazygit (for LunarVim)..."
 # We install it to standard GOPATH or /usr/local/bin
 if ! command -v lazygit >/dev/null; then
     # Use Go to install it to /opt/go/bin or GOBIN
@@ -159,7 +159,7 @@ else
 fi
 
 # 5. Install Editors
-echo "FluxLinux: Installing Editors..."
+echo "NativeCode: Installing Editors..."
 
 # 5a. Micro
 if ! command -v micro >/dev/null; then
@@ -175,7 +175,7 @@ echo " - Installing Geany, Vim, Emacs..."
 apt install -y geany vim emacs-nox || handle_error "Editors Installation"
 
 # 5c. VS Code (Official Tarball Method)
-echo "FluxLinux: Checking VS Code..."
+echo "NativeCode: Checking VS Code..."
 if ! command -v code &> /dev/null; then
     echo " - Installing VS Code (ARM64 Stable)..."
     rm -f /etc/apt/sources.list.d/vscode.list
@@ -224,7 +224,7 @@ chown -R $TARGET_USER:$TARGET_GROUP /home/$TARGET_USER/.config
 
 
 # 5d. LunarVim (Requires Neovim installed via apt above)
-echo "FluxLinux: Installing LunarVim..."
+echo "NativeCode: Installing LunarVim..."
 # Verify Neovim version
 NVIM_VER=$(nvim --version | head -n 1)
 echo " - Found Neovim: $NVIM_VER"
@@ -284,14 +284,14 @@ update_shell_path "/home/$TARGET_USER/.bashrc" "~/.npm-global/bin" "NPM Global"
 update_shell_path "/home/$TARGET_USER/.zshrc" "~/.npm-global/bin" "NPM Global"
 
 # 6. Final Permissions
-echo "FluxLinux: Applying permissions..."
+echo "NativeCode: Applying permissions..."
 chown -R $TARGET_USER:$TARGET_GROUP "/home/$TARGET_USER" || handle_error "Final Permissions"
 chmod -R 755 /opt/go || handle_error "Go Permissions"
 
 # 7. Verification
 verify_installation() {
     echo ""
-    echo "🔎 FluxLinux: Verifying Installations..."
+    echo "🔎 NativeCode: Verifying Installations..."
     echo "------------------------------------------------"
     MISSING=0
     
