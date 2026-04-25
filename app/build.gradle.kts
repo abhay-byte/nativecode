@@ -103,6 +103,9 @@ dependencies {
     
     // Networking
     implementation(libs.okhttp)
+    
+    // Encrypted storage for API keys
+    implementation(libs.androidx.security.crypto)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

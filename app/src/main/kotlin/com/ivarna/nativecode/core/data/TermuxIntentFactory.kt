@@ -364,6 +364,64 @@ object TermuxIntentFactory {
     }
 
     /**
+     * Launches a CLI session inside the distro with the working directory
+     * set to [projectPath] and Codex on PATH. The user lands at an interactive
+     * bash prompt ready to run `codex <prompt>`.
+     */
+    fun buildLaunchCodexCliIntent(distroId: String, projectPath: String): Intent {
+        val pathEscaped = projectPath.replace("\"", "\\\"")
+        val banner = "\\n\\033[1;36m[NativeCode Codex]\\033[0m Project: $pathEscaped\\n\\033[1;32mTip:\\033[0m Type: codex <your-prompt>\\n"
+
+        val dollar = "${'$'}"
+        val innerCommand = (
+            "cd \"$pathEscaped\" 2>/dev/null || cd /home/flux || cd /home; " +
+            "export PATH=\"${dollar}PATH:/opt/nodejs/bin:/usr/local/bin\"; " +
+            "echo -e \"$banner\"; " +
+            "exec bash"
+        )
+
+        return when {
+            distroId == "termux" -> {
+                buildRunCommandIntent(
+                    "cd \"$pathEscaped\" 2>/dev/null || cd /home; export PATH=\"${dollar}PATH:/opt/nodejs/bin:/usr/local/bin\"; echo -e \"$banner\"; exec bash",
+                    runInBackground = false
+                )
+            }
+            distroId.contains("chroot") -> {
+                // Chroot: write a temp script, run it via chroot entry helper
+                val chrootPath = when (distroId) {
+                    "debian13_chroot" -> "/data/local/tmp/chrootDebian13"
+                    "debian_chroot" -> "/data/local/tmp/chrootDebian"
+                    else -> "/data/local/tmp/chrootDebian13"
+                }
+                val termuxTmp = "/data/data/com.termux/files/usr/tmp"
+                val script = (
+                    "cd \"$pathEscaped\" 2>/dev/null || cd /root || cd /home; " +
+                    "export PATH=\"${dollar}PATH:/opt/nodejs/bin:/usr/local/bin\"; " +
+                    "echo -e \"$banner\"; " +
+                    "exec bash"
+                )
+                val scriptB64 = android.util.Base64.encodeToString(script.toByteArray(), android.util.Base64.NO_WRAP)
+                val command = (
+                    "su -c '" +
+                    "mkdir -p $termuxTmp; " +
+                    "echo \"$scriptB64\" | base64 -d > $termuxTmp/codex_cli.sh; " +
+                    "chmod +x $termuxTmp/codex_cli.sh; " +
+                    "busybox chroot $chrootPath /bin/su - root -c \"bash /tmp/codex_cli.sh\"; " +
+                    "rm -f $termuxTmp/codex_cli.sh; " +
+                    "'"
+                )
+                buildRunCommandIntent(command, runInBackground = false)
+            }
+            else -> {
+                // PRoot: pass the inner command to proot-distro login
+                val command = "proot-distro login $distroId --user flux -- bash -c '$innerCommand'"
+                buildRunCommandIntent(command, runInBackground = false)
+            }
+        }
+    }
+
+    /**
      * Launches a specific chroot distro in CLI mode as ROOT user.
      * Only works for chroot distros (debian13_chroot, debian_chroot, arch_chroot).
      */

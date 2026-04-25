@@ -45,89 +45,86 @@ enum class Screen {
     TROUBLESHOOTING,
     ROOT_ACCESS,
     INSTALL_WIZARD,
-    DISTRO_SETTINGS
+    DISTRO_SETTINGS,
 }
 
 class MainActivity : ComponentActivity() {
     
     override fun onNewIntent(intent: android.content.Intent) {
         super.onNewIntent(intent)
-        handleScriptCallback(intent)
+        handleDeepLink(intent)
     }
 
-    private fun handleScriptCallback(intent: android.content.Intent) {
-        android.util.Log.d("NativeCode", "handleScriptCallback called with action: ${intent.action}, data: ${intent.data}")
-        // Handle Deep Link: nativecode://callback?result=success&name=setup_termux
-        if (intent.action == android.content.Intent.ACTION_VIEW && intent.data?.scheme == "nativecode") {
-            val uri = intent.data
-            val result = uri?.getQueryParameter("result")
-            val scriptName = uri?.getQueryParameter("name") ?: "unknown"
-            val installedComponents = uri?.getQueryParameter("components") // Legacy
-            
-            android.util.Log.d("NativeCode", "Deep Link received: result=$result, scriptName=$scriptName")
-            
-            if (result == "success") {
-                 // Check Queue first
-                 val queueManager = com.ivarna.nativecode.core.utils.InstallationQueueManager
-                 val currentTask = queueManager.currentTask
-                 
-                 // If the callback matches the current task, proceed queue
-                 if (currentTask != null && (scriptName == currentTask.id || scriptName == "base_install")) { // base_install hardcoded in script
-                     android.widget.Toast.makeText(this, "Task '${currentTask.name}' Complete. Proceeding...", android.widget.Toast.LENGTH_SHORT).show()
-                     
-                     if (currentTask.type == com.ivarna.nativecode.core.utils.TaskType.BASE_INSTALL) {
-                         // Mark Distro Installed on Base Success
-                         // We assume we know the distro ID from state or we just mark currently selected?
-                         // Ideally we pass distro ID in callback, or use 'selectedDistro' variable if available?
-                         // MainActivity is recreated? No, usually singleTop/SingleTask. 'selectedDistro' state might receive it.
-                         // But for safety, we rely on 'distro_install_ID' naming convention if possible, but our base script has generic name.
-                         // Let's rely on 'base_install' result means 'selectedDistro' (which should be saved/restored if activity died).
-                         // Actually, 'selectedDistro' is inside setContent scope.
-                         // We need a class-level property or StateManager access.
-                         // For now, let's assume 'selectedDistro' is unavailable here and we rely on user manually refreshing or existing state?
-                         // NO, we MUST update StateManager.
-                         // FIX: Let's extract Distro ID from the Task if possible.
-                         // But Task struct doesn't have distroId yet.
-                         // We'll trust the processNextInstallTask logic to handle the flow.
-                         // Marking distro installed:
-                         // We can iterate Distros and match ID? Or just skip marking if ID not known?
-                         // The Base Script DOES NOT include ID in "name=base_install". 
-                         // However, InstallQueueManager is singleton. We can store context there?
-                         // Let's just process queue. The user will see "Installed" in UI eventually.
-                     }
-                     
-                     // Mark Component as Installed in StateManager
-                     val distroId = currentTask.distroId
-                     if (currentTask.type == com.ivarna.nativecode.core.utils.TaskType.COMPONENT) {
-                         StateManager.setComponentInstalled(this, distroId, currentTask.id, true)
-                     }
-                     // Force State Update
-                     StateManager.triggerRefresh()
-                 } else {
-                     // Legacy / Standalone handling
-                     if (scriptName.startsWith("distro_install_")) {
-                         val distroId = scriptName.removePrefix("distro_install_")
-                         StateManager.setDistroInstalled(this, distroId, true)
-                         android.widget.Toast.makeText(this, "$distroId Installed! ✅", android.widget.Toast.LENGTH_LONG).show()
-                     } else if (scriptName.startsWith("distro_uninstall_")) {
-                         val distroId = scriptName.removePrefix("distro_uninstall_")
-                         StateManager.clearDistroState(this, distroId)
-                         android.widget.Toast.makeText(this, "$distroId Uninstalled! 🗑️", android.widget.Toast.LENGTH_LONG).show()
-                     } else {
-                         // Generic Script
-                         StateManager.setScriptStatus(this, scriptName, true)
-                         android.widget.Toast.makeText(this, "Script '$scriptName' details saved.", android.widget.Toast.LENGTH_SHORT).show()
-                     }
+    private fun handleDeepLink(intent: android.content.Intent) {
+        android.util.Log.d("NativeCode", "handleDeepLink called with action: ${intent.action}, data: ${intent.data}")
+        if (intent.action != android.content.Intent.ACTION_VIEW || intent.data?.scheme != "nativecode") return
+
+        val uri = intent.data ?: return
+        when (uri.host) {
+            "callback" -> handleScriptCallback(uri)
+            "codex-response", "codex-oauth" -> handleCodexResponse(uri)
+        }
+    }
+
+    private fun handleCodexResponse(uri: android.net.Uri) {
+        val id = uri.getQueryParameter("id") ?: return
+        val status = uri.getQueryParameter("status") ?: "error"
+        val responseB64 = uri.getQueryParameter("response") ?: ""
+
+        val response = try {
+            String(android.util.Base64.decode(responseB64, android.util.Base64.URL_SAFE), Charsets.UTF_8)
+        } catch (e: Exception) {
+            android.util.Log.e("NativeCode", "Failed to decode Codex response", e)
+            responseB64
+        }
+
+        val result = if (status == "error") {
+            Result.failure(Exception(response))
+        } else {
+            Result.success(response)
+        }
+
+        val completed = com.ivarna.nativecode.core.codex.CodexResponseBridge.complete(id, result)
+        android.util.Log.d("NativeCode", "Codex response handled: id=$id, status=$status, completed=$completed")
+    }
+
+    private fun handleScriptCallback(uri: android.net.Uri) {
+        val result = uri.getQueryParameter("result")
+        val scriptName = uri.getQueryParameter("name") ?: "unknown"
+
+        android.util.Log.d("NativeCode", "Script callback: result=$result, scriptName=$scriptName")
+
+        if (result == "success") {
+             val queueManager = com.ivarna.nativecode.core.utils.InstallationQueueManager
+             val currentTask = queueManager.currentTask
+
+             if (currentTask != null && (scriptName == currentTask.id || scriptName == "base_install")) {
+                 android.widget.Toast.makeText(this, "Task '${currentTask.name}' Complete. Proceeding...", android.widget.Toast.LENGTH_SHORT).show()
+
+                 val distroId = currentTask.distroId
+                 if (currentTask.type == com.ivarna.nativecode.core.utils.TaskType.COMPONENT) {
+                     StateManager.setComponentInstalled(this, distroId, currentTask.id, true)
                  }
-                 
-                 // Process Next
-                 processNextInstallTask()
-                 
-            } else {
-                 // Component failed
-                 android.widget.Toast.makeText(this, "Task '$scriptName' failed! ❌", android.widget.Toast.LENGTH_LONG).show()
-                 com.ivarna.nativecode.core.utils.InstallationQueueManager.clear() // Stop queue on failure
-            }
+                 StateManager.triggerRefresh()
+             } else {
+                 if (scriptName.startsWith("distro_install_")) {
+                     val distroId = scriptName.removePrefix("distro_install_")
+                     StateManager.setDistroInstalled(this, distroId, true)
+                     android.widget.Toast.makeText(this, "$distroId Installed! ✅", android.widget.Toast.LENGTH_LONG).show()
+                 } else if (scriptName.startsWith("distro_uninstall_")) {
+                     val distroId = scriptName.removePrefix("distro_uninstall_")
+                     StateManager.clearDistroState(this, distroId)
+                     android.widget.Toast.makeText(this, "$distroId Uninstalled! 🗑️", android.widget.Toast.LENGTH_LONG).show()
+                 } else {
+                     StateManager.setScriptStatus(this, scriptName, true)
+                     android.widget.Toast.makeText(this, "Script '$scriptName' details saved.", android.widget.Toast.LENGTH_SHORT).show()
+                 }
+             }
+
+             processNextInstallTask()
+        } else {
+             android.widget.Toast.makeText(this, "Task '$scriptName' failed! ❌", android.widget.Toast.LENGTH_LONG).show()
+             com.ivarna.nativecode.core.utils.InstallationQueueManager.clear()
         }
     }
 
@@ -199,6 +196,7 @@ class MainActivity : ComponentActivity() {
     @OptIn(ExperimentalPermissionsApi::class, ExperimentalHazeMaterialsApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        handleDeepLink(intent)
         setContent {
             // Watch Theme Preference
             val context = LocalContext.current
@@ -289,7 +287,19 @@ class MainActivity : ComponentActivity() {
                         }
                         BottomTab.PROJECTS -> {
                             com.ivarna.nativecode.ui.screens.ProjectsScreen(
-                                hazeState = hazeState
+                                hazeState = hazeState,
+                                onOpenWithCodex = { path ->
+                                    // Determine which distro to use — prefer the first installed PRoot distro
+                                    val installed = StateManager.getInstalledDistros(context)
+                                    val targetDistro = installed.firstOrNull() ?: "debian"
+                                    val intent = com.ivarna.nativecode.core.data.TermuxIntentFactory.buildLaunchCodexCliIntent(targetDistro, path)
+                                    try {
+                                        onStartServiceStub(intent)
+                                    } catch (e: Exception) {
+                                        android.util.Log.e("NativeCode", "Failed to launch Codex CLI", e)
+                                        android.widget.Toast.makeText(context, "Failed to launch Termux. Make sure it's installed.", android.widget.Toast.LENGTH_LONG).show()
+                                    }
+                                }
                             )
                         }
                     }
@@ -591,13 +601,13 @@ class MainActivity : ComponentActivity() {
                          }
                     }
                     Screen.DISTRO_SETTINGS -> {
-                         val hazeState = remember { HazeState() }
-                         if (selectedDistro != null) {
-                             com.ivarna.nativecode.ui.screens.DistroSettingsScreen(
-                                 distro = selectedDistro!!,
-                                 onBack = { currentScreen = Screen.HOME },
-                                 hazeState = hazeState,
-                                  onInstallComponent = { component, extraEnv ->
+                          val hazeState = remember { HazeState() }
+                          if (selectedDistro != null) {
+                              com.ivarna.nativecode.ui.screens.DistroSettingsScreen(
+                                  distro = selectedDistro!!,
+                                  onBack = { currentScreen = Screen.HOME },
+                                  hazeState = hazeState,
+                                   onInstallComponent = { component, extraEnv ->
                                       if (permissionState.status.isGranted) {
                                           lifecycleScope.launch(kotlinx.coroutines.Dispatchers.IO) {
                                               val queueManager = com.ivarna.nativecode.core.utils.InstallationQueueManager

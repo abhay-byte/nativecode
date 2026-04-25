@@ -14,10 +14,12 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FolderOpen
+import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -28,6 +30,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ivarna.nativecode.core.utils.StateManager
@@ -39,10 +42,15 @@ import kotlinx.coroutines.delay
 @Composable
 fun ProjectsScreen(
     hazeState: HazeState,
-    onBack: (() -> Unit)? = null
+    onBack: (() -> Unit)? = null,
+    onOpenWithCodex: (String) -> Unit = {}
 ) {
     val context = LocalContext.current
     var projectPaths by remember { mutableStateOf(StateManager.getProjectPaths(context).toList()) }
+
+    // Agent selection dialog state
+    var showAgentDialog by remember { mutableStateOf(false) }
+    var selectedProjectPath by remember { mutableStateOf("") }
 
     // Launcher for selecting a directory
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri: Uri? ->
@@ -122,6 +130,10 @@ fun ProjectsScreen(
                 ) {
                     ProjectGlassCard(
                         path = path,
+                        onClick = {
+                            selectedProjectPath = path
+                            showAgentDialog = true
+                        },
                         onDelete = {
                             StateManager.removeProjectPath(context, path)
                             projectPaths = StateManager.getProjectPaths(context).toList()
@@ -130,6 +142,31 @@ fun ProjectsScreen(
                 }
             }
         }
+    }
+
+    // ── Agent Selection Dialog ───────────────────────────────────
+    if (showAgentDialog) {
+        AgentSelectionDialog(
+            projectPath = selectedProjectPath,
+            onDismiss = { showAgentDialog = false },
+            onOpenWithCodex = {
+                showAgentDialog = false
+                onOpenWithCodex(selectedProjectPath)
+            },
+            onCopyPath = {
+                val clip = android.content.ClipData.newPlainText("Project Path", selectedProjectPath)
+                val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE)
+                        as android.content.ClipboardManager
+                clipboard.setPrimaryClip(clip)
+                android.widget.Toast.makeText(context, "Path copied!", android.widget.Toast.LENGTH_SHORT).show()
+                showAgentDialog = false
+            },
+            onRemove = {
+                StateManager.removeProjectPath(context, selectedProjectPath)
+                projectPaths = StateManager.getProjectPaths(context).toList()
+                showAgentDialog = false
+            }
+        )
     }
 }
 
@@ -209,7 +246,7 @@ fun CrystalButton(
 // Glass Project Card
 // ─────────────────────────────────────────────────────────────────────────────
 @Composable
-fun ProjectGlassCard(path: String, onDelete: () -> Unit) {
+fun ProjectGlassCard(path: String, onClick: () -> Unit, onDelete: () -> Unit) {
     val context = LocalContext.current
     val folderName = path.substringAfterLast("/").takeIf { it.isNotEmpty() } ?: "Root"
 
@@ -235,6 +272,7 @@ fun ProjectGlassCard(path: String, onDelete: () -> Unit) {
                 ),
                 RoundedCornerShape(24.dp)
             )
+            .clickable(onClick = onClick)
     ) {
         // Top glow
         Box(
@@ -420,6 +458,213 @@ fun EmptyProjectsState() {
             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
             textAlign = androidx.compose.ui.text.style.TextAlign.Center
         )
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Agent Selection Dialog — glassmorphism bottom sheet style
+// ─────────────────────────────────────────────────────────────────────────────
+@Composable
+fun AgentSelectionDialog(
+    projectPath: String,
+    onDismiss: () -> Unit,
+    onOpenWithCodex: () -> Unit,
+    onCopyPath: () -> Unit,
+    onRemove: () -> Unit
+) {
+    val folderName = projectPath.substringAfterLast("/").takeIf { it.isNotEmpty() } ?: "Root"
+
+    androidx.compose.ui.window.Dialog(
+        onDismissRequest = onDismiss,
+        properties = androidx.compose.ui.window.DialogProperties(
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false
+        )
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .clickable(onClick = onDismiss),
+            contentAlignment = Alignment.BottomCenter
+        ) {
+            // Dialog content
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+                    .clip(RoundedCornerShape(28.dp))
+                    .background(
+                        Brush.linearGradient(
+                            colors = listOf(
+                                Color(0xFF1E1E1E).copy(alpha = 0.98f),
+                                Color(0xFF121212).copy(alpha = 0.99f)
+                            )
+                        )
+                    )
+                    .border(
+                        1.dp,
+                        Brush.verticalGradient(
+                            listOf(
+                                Color.White.copy(alpha = 0.15f),
+                                Color.Transparent
+                            )
+                        ),
+                        RoundedCornerShape(28.dp)
+                    )
+                    .padding(24.dp)
+                    .clickable(enabled = false) { /* consume clicks */ }
+            ) {
+                // Header
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(
+                                Brush.linearGradient(
+                                    colors = listOf(
+                                        FluxAccentCyan.copy(alpha = 0.15f),
+                                        FluxAccentMagenta.copy(alpha = 0.08f)
+                                    )
+                                )
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.FolderOpen,
+                            contentDescription = null,
+                            tint = FluxAccentCyan,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Text(
+                        text = folderName,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+
+                    Text(
+                        text = projectPath,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.15f))
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Primary Action: Open with Codex
+                AgentActionButton(
+                    icon = Icons.Default.SmartToy,
+                    iconTint = Color(0xFF10A37F),
+                    label = "Open with Codex",
+                    description = "AI coding agent by OpenAI",
+                    onClick = onOpenWithCodex
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Secondary: Copy Path
+                AgentActionButton(
+                    icon = Icons.Default.ContentCopy,
+                    iconTint = FluxAccentCyan,
+                    label = "Copy Linux Path",
+                    description = "Copy to clipboard for Termux",
+                    onClick = onCopyPath
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Destructive: Remove
+                AgentActionButton(
+                    icon = Icons.Default.Delete,
+                    iconTint = Color(0xFFFF5252),
+                    label = "Remove Project",
+                    description = "Unlink this folder",
+                    onClick = onRemove
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                TextButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        "Cancel",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun AgentActionButton(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    iconTint: Color,
+    label: String,
+    description: String,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(Color.White.copy(alpha = 0.05f))
+            .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(16.dp))
+            .clickable(onClick = onClick)
+            .padding(16.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier
+                    .size(42.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(iconTint.copy(alpha = 0.12f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = iconTint,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.width(14.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = label,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = description,
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.OpenInNew,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                modifier = Modifier.size(18.dp)
+            )
+        }
     }
 }
 

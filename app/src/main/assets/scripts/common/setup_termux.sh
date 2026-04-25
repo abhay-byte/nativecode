@@ -50,6 +50,10 @@ pkg install -y proot-distro x11-repo pulseaudio wget zsh fastfetch git unzip uti
 # 3. Install Termux:X11
 pkg install -y termux-x11-nightly
 
+# 3.5 Setup Android Storage access
+# Creates ~/storage/ symlinks and ensures /sdcard is accessible
+termux-setup-storage || true
+
 # 4. Install Hardware Acceleration Tools
 echo "NativeCode: Installing Hardware Acceleration tools..."
 # Enable TUR repo for advanced packages
