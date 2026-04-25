@@ -1,6 +1,6 @@
-# FluxLinux Assets Reference
+# NativeCode Assets Reference
 
-This document provides a comprehensive overview of all assets used in the FluxLinux project for distro customization, branding, and theming.
+This document provides a comprehensive overview of all assets used in the NativeCode project for distro customization, branding, and theming.
 
 ---
 
@@ -25,8 +25,8 @@ This document provides a comprehensive overview of all assets used in the FluxLi
 ```
 assets/
 ├── logo/                    # Application logo files
-│   ├── logo.png             # High-res PNG (5.3 MB)
-│   └── logo.webp            # Optimized WebP (157 KB)
+│   ├── logo.png             # High-res PNG (~525 KB)
+│   └── logo.webp            # Optimized WebP (~80 KB)
 ├── me.png                   # Developer avatar
 ├── onboarding/              # Onboarding screen images
 │   └── onboarding-1.webp    # First onboarding slide
@@ -55,10 +55,10 @@ assets/
 
 | File | Size | Format | Usage |
 |------|------|--------|-------|
-| `logo.png` | 5.3 MB | PNG | High-resolution, marketing materials |
-| `logo.webp` | 157 KB | WebP | Optimized, app usage |
+| `logo.png` | ~525 KB | PNG | High-resolution, marketing materials |
+| `logo.webp` | ~80 KB | WebP | Optimized, app usage |
 
-The FluxLinux logo is used throughout the app and promotional materials.
+The NativeCode logo is used throughout the app and promotional materials.
 
 ---
 
@@ -105,7 +105,7 @@ https://github.com/abhay-byte/fluxlinux/releases/download/debian-v1/debian_arm64
 
 **Location:** `assets/wallpaper/`
 
-Desktop wallpapers for the FluxLinux-themed desktop environment.
+Desktop wallpapers for the NativeCode-themed desktop environment.
 
 | File | Size | Theme | Resolution |
 |------|------|-------|------------|
@@ -287,7 +287,7 @@ flowchart TD
 
 ## License
 
-All assets are subject to the FluxLinux project license (GPLv3).
+All assets are subject to the NativeCode project license (GPLv3).
 
 Third-party assets retain their original licenses:
 - **Papirus Icons:** GPLv3

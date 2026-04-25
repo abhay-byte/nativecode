@@ -6,6 +6,12 @@ Tracking pending tasks for the FluxLinux → NativeCode upgrade.
 
 ## ✅ Done
 
+- [x] Update app icon
+  - Replaced logo with new Android mascot + terminal design
+  - Removed blue background, zoomed/cropped to fit frame
+  - Updated `assets/logo/logo.png` and `assets/logo/logo.webp`
+  - Updated Android launcher icons (`mipmap-mdpi` through `mipmap-xxxhdpi`)
+  - Updated documentation references (`README.md`, `docs/README.md`, `docs/assets_reference.md`)
 - [x] Rename package `com.ivarna.fluxlinux` → `com.ivarna.nativecode`
   - Updated `app/build.gradle.kts` (namespace + applicationId)
   - Updated `AndroidManifest.xml` (FileProvider authority + deep link scheme `nativecode://`)
