@@ -38,6 +38,8 @@ Installs Node.js, Python, VS Code, and browsers for web development.
 | Installation | `/usr/share/code` |
 | Binary | `/usr/bin/code` |
 
+> **Note:** VS Code can also be installed as a standalone IDE from the IDE Tools section. The webdev script and the standalone script share the same installation paths.
+
 **Installation Notes:**
 - Installed via tarball (avoids dpkg crashes in PRoot)
 - Runs with `--no-sandbox` flag in PRoot

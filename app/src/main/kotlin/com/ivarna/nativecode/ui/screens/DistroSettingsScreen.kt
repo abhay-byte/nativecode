@@ -20,6 +20,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.Laptop
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
@@ -68,6 +69,7 @@ fun DistroSettingsScreen(
     var showGpuDialog by remember { mutableStateOf(false) }
     var activeComponent by remember { mutableStateOf<DistroComponent?>(null) }
     var showAiToolsScreen by remember { mutableStateOf(false) }
+    var showIdeToolsScreen by remember { mutableStateOf(false) }
     
     // Selections
     var selectedTheme by remember { mutableStateOf("dark") }
@@ -79,6 +81,16 @@ fun DistroSettingsScreen(
         AiToolsScreen(
             distro = distro,
             onBack = { showAiToolsScreen = false },
+            onInstallComponent = onInstallComponent,
+            hazeState = hazeState
+        )
+        return
+    }
+
+    if (showIdeToolsScreen) {
+        IdeToolsScreen(
+            distro = distro,
+            onBack = { showIdeToolsScreen = false },
             onInstallComponent = onInstallComponent,
             hazeState = hazeState
         )
@@ -239,6 +251,52 @@ fun DistroSettingsScreen(
                     Spacer(modifier = Modifier.height(8.dp))
                 }
 
+                // ─── IDE & Code Editors Banner ──────────────────────────
+                item {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(
+                                Brush.linearGradient(
+                                    colors = listOf(
+                                        Color(0xFF007ACC).copy(alpha = 0.15f),
+                                        MaterialTheme.colorScheme.surface.copy(alpha = 0.4f)
+                                    )
+                                )
+                            )
+                            .border(1.dp, Color(0xFF007ACC).copy(alpha = 0.3f), RoundedCornerShape(20.dp))
+                            .clickable { showIdeToolsScreen = true }
+                            .padding(16.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                Icons.Default.Laptop,
+                                contentDescription = null,
+                                tint = Color(0xFF007ACC),
+                                modifier = Modifier.size(32.dp)
+                            )
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Column {
+                                Text(
+                                    "IDE & Code Editors",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    "VS Code, Cursor, Windsurf, Antigravity & more",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+
 
                 // ─── Components Section Title ──────────────────────────────
                 item {
@@ -253,7 +311,7 @@ fun DistroSettingsScreen(
 
 
                 // Filter out component IDs that have dedicated UI sections
-                val genericComponents = distro.components.filter { it.id != "ai_tools" }
+                val genericComponents = distro.components.filter { it.id != "ai_tools" && it.id != "ide_tools" }
 
                 items(genericComponents) { component ->
                     val isInstalled = remember(component.id) { 
@@ -285,6 +343,8 @@ fun DistroSettingsScreen(
                                 else -> {
                                     if (component.id == "ai_tools") {
                                         showAiToolsScreen = true
+                                    } else if (component.id == "ide_tools") {
+                                        showIdeToolsScreen = true
                                     } else {
                                         // Generic install (kde_plasma, app_dev, web_dev, etc.)
                                         onInstallComponent(component, emptyMap())
@@ -710,7 +770,48 @@ fun ComponentManagementGlassCard(
                             color = MaterialTheme.colorScheme.secondary,
                             fontWeight = FontWeight.Bold
                         )
-                        Spacer(modifier = Modifier.height(8.dp))
+Spacer(modifier = Modifier.height(8.dp))
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(
+                                Brush.linearGradient(
+                                    colors = listOf(
+                                        Color(0xFF007ACC).copy(alpha = 0.15f),
+                                        MaterialTheme.colorScheme.surface.copy(alpha = 0.4f)
+                                    )
+                                )
+                            )
+                            .border(1.dp, Color(0xFF007ACC).copy(alpha = 0.3f), RoundedCornerShape(20.dp))
+                            .clickable { showIdeToolsScreen = true }
+                            .padding(16.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                Icons.Default.Laptop,
+                                contentDescription = null,
+                                tint = Color(0xFF007ACC),
+                                modifier = Modifier.size(32.dp)
+                            )
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Column {
+                                Text(
+                                    "IDE & Code Editors",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    "VS Code, Cursor, Windsurf, Antigravity & more",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
                         
                         details.packages.forEach { (pkg, size) ->
                             Row(

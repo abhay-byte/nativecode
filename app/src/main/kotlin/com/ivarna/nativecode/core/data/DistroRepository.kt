@@ -119,6 +119,13 @@ object DistroRepository {
             sizeEstimate = "varies"
         ),
         DistroComponent(
+            id = "ide_tools",
+            name = "IDE & Code Editors",
+            description = "AI-powered code editors and IDEs for your workspace.",
+            scriptName = "",  // Sub-page navigation — no direct script
+            sizeEstimate = "varies"
+        ),
+        DistroComponent(
             id = "emulation",
             name = "Retro Emulation",
             description = "RetroArch, various emulator cores.",

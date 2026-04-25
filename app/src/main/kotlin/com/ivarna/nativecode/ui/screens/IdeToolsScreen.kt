@@ -6,9 +6,12 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Laptop
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.SmartToy
+import androidx.compose.material.icons.filled.Laptop
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -32,144 +35,103 @@ import dev.chrisbanes.haze.hazeChild
 import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
 import dev.chrisbanes.haze.materials.HazeMaterials
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Data model for an AI tool
-// ─────────────────────────────────────────────────────────────────────────────
-data class AiTool(
+data class IdeTool(
     val id: String,
     val name: String,
     val description: String,
-    val command: String,           // CLI invocation shown to the user
+    val command: String,
     val sizeEstimate: String,
     val accentColor: Color,
-    val iconRes: Int?,             // nullable drawable — falls back to SmartToy icon
-    val component: DistroComponent // ties to the install script / callback
+    val iconRes: Int?,
+    val component: DistroComponent
 )
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Registry of all AI tools (add more here as they are implemented)
-// ─────────────────────────────────────────────────────────────────────────────
-val aiTools = listOf(
-    AiTool(
-        id   = "codex",
-        name = "Codex CLI",
-        description = "OpenAI's official terminal-native AI coding agent. Code, debug, and refactor using natural language right from your shell.",
-        command = "codex",
-        sizeEstimate = "~50 MB",
-        accentColor  = Color(0xFF10A37F),
-        iconRes = R.drawable.ic_codex,
-        component = DistroComponent(
-            id          = "ai_tools_codex",
-            name        = "Codex CLI",
-            description = "Install OpenAI Codex CLI via npm.",
-            scriptName  = "common/setup_codex_debian.sh",
-            sizeEstimate = "~50 MB"
-        )
-    ),
-    AiTool(
-        id   = "claude_code",
-        name = "Claude Code",
-        description = "Anthropic's official CLI for Claude. An agentic coding tool that lives in your terminal — understands your codebase, edits files, and runs commands.",
-        command = "claude",
-        sizeEstimate = "~60 MB",
-        accentColor  = Color(0xFFD97706),
+val ideTools = listOf(
+    IdeTool(
+        id = "vscode",
+        name = "VS Code",
+        description = "Microsoft's lightweight but powerful code editor with rich extension ecosystem. Runs natively on ARM64 Linux.",
+        command = "code",
+        sizeEstimate = "~350 MB",
+        accentColor = Color(0xFF007ACC),
         iconRes = null,
         component = DistroComponent(
-            id          = "ai_tools_claude_code",
-            name        = "Claude Code",
-            description = "Install Anthropic Claude Code CLI via npm.",
-            scriptName  = "common/setup_claude_code_debian.sh",
-            sizeEstimate = "~60 MB"
+            id = "ide_tools_vscode",
+            name = "VS Code",
+            description = "Install Visual Studio Code (ARM64 tarball).",
+            scriptName = "common/setup_vscode_debian.sh",
+            sizeEstimate = "~350 MB"
         )
     ),
-    AiTool(
-        id   = "gemini_cli",
-        name = "Gemini CLI",
-        description = "Google's Gemini CLI brings the power of Gemini models directly to your terminal. Generate, refactor, and explain code with natural language.",
-        command = "gemini",
-        sizeEstimate = "~50 MB",
-        accentColor  = Color(0xFF4285F4),
+    IdeTool(
+        id = "cursor",
+        name = "Cursor",
+        description = "The AI-first code editor built on VS Code. Get intelligent code suggestions, multi-file edits, and natural-language coding right inside your editor.",
+        command = "cursor",
+        sizeEstimate = "~400 MB",
+        accentColor = Color(0xFF6C5CE7),
         iconRes = null,
         component = DistroComponent(
-            id          = "ai_tools_gemini_cli",
-            name        = "Gemini CLI",
-            description = "Install Google Gemini CLI via npm.",
-            scriptName  = "common/setup_gemini_cli_debian.sh",
-            sizeEstimate = "~50 MB"
+            id = "ide_tools_cursor",
+            name = "Cursor",
+            description = "Install Cursor AI Code Editor (ARM64).",
+            scriptName = "common/setup_cursor_debian.sh",
+            sizeEstimate = "~400 MB"
         )
     ),
-    AiTool(
-        id   = "cline",
-        name = "Cline",
-        description = "Autonomous AI coding agent that lives in your editor. Creates files, runs commands, and uses the browser — all with human-in-the-loop oversight.",
-        command = "cline",
-        sizeEstimate = "~5 MB",
-        accentColor  = Color(0xFF6C5CE7),
+    IdeTool(
+        id = "antigravity",
+        name = "Antigravity",
+        description = "AI-first code editor with intelligent code completion and natural language coding support. Optimized for ARM64 Linux.",
+        command = "antigravity",
+        sizeEstimate = "~150 MB",
+        accentColor = Color(0xFFFF6B35),
         iconRes = null,
         component = DistroComponent(
-            id          = "ai_tools_cline",
-            name        = "Cline",
-            description = "Install Cline AI Agent (VS Code / Cursor extension).",
-            scriptName  = "common/setup_cline_debian.sh",
-            sizeEstimate = "~5 MB"
+            id = "ide_tools_antigravity",
+            name = "Antigravity",
+            description = "Install Antigravity AI Code Editor.",
+            scriptName = "common/setup_antigravity_ide_debian.sh",
+            sizeEstimate = "~150 MB"
         )
     ),
-    AiTool(
-        id   = "kilocode",
-        name = "KiloCode",
-        description = "Open-source AI coding agent for VS Code and Cursor. Fork of Cline with enhanced features and multi-provider support.",
-        command = "kilocode",
-        sizeEstimate = "~5 MB",
-        accentColor  = Color(0xFF00BFA5),
+    IdeTool(
+        id = "nexus",
+        name = "Nexus",
+        description = "NativeCode's own IDE — purpose-built for mobile Linux development. Deep integration with your NativeCode workspace.",
+        command = "nexus",
+        sizeEstimate = "~200 MB",
+        accentColor = Color(0xFF00BFA5),
         iconRes = null,
         component = DistroComponent(
-            id          = "ai_tools_kilocode",
-            name        = "KiloCode",
-            description = "Install KiloCode AI Agent (VS Code / Cursor extension).",
-            scriptName  = "common/setup_kilocode_debian.sh",
-            sizeEstimate = "~5 MB"
+            id = "ide_tools_nexus",
+            name = "Nexus IDE",
+            description = "Install Nexus IDE (NativeCode's IDE).",
+            scriptName = "common/setup_nexus_debian.sh",
+            sizeEstimate = "~200 MB"
         )
     ),
-    AiTool(
-        id   = "opencode",
-        name = "OpenCode",
-        description = "Terminal-based AI coding tool written in Go. Supports multiple LLM providers with a beautiful TUI interface for interactive coding.",
-        command = "opencode",
-        sizeEstimate = "~20 MB",
-        accentColor  = Color(0xFFE91E63),
+    IdeTool(
+        id = "windsurf",
+        name = "Windsurf",
+        description = "Codeium's AI-powered code editor. Cascade AI agent, intelligent completions, and natural language coding in a VS Code-based editor.",
+        command = "windsurf",
+        sizeEstimate = "~400 MB",
+        accentColor = Color(0xFF00D4AA),
         iconRes = null,
         component = DistroComponent(
-            id          = "ai_tools_opencode",
-            name        = "OpenCode",
-            description = "Install OpenCode terminal AI agent (Go binary).",
-            scriptName  = "common/setup_opencode_debian.sh",
-            sizeEstimate = "~20 MB"
-        )
-    ),
-    AiTool(
-        id   = "kiro_cli",
-        name = "Kiro CLI",
-        description = "Amazon's AI-powered development assistant that helps you build, debug, and ship code faster. Spec-driven development with AI agents.",
-        command = "kiro",
-        sizeEstimate = "~50 MB",
-        accentColor  = Color(0xFFFF9900),
-        iconRes = null,
-        component = DistroComponent(
-            id          = "ai_tools_kiro_cli",
-            name        = "Kiro CLI",
-            description = "Install Amazon Kiro CLI via npm.",
-            scriptName  = "common/setup_kiro_cli_debian.sh",
-            sizeEstimate = "~50 MB"
+            id = "ide_tools_windsurf",
+            name = "Windsurf",
+            description = "Install Windsurf (Codeium) AI Code Editor.",
+            scriptName = "common/setup_windsurf_debian.sh",
+            sizeEstimate = "~400 MB"
         )
     )
 )
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Screen
-// ─────────────────────────────────────────────────────────────────────────────
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalHazeMaterialsApi::class)
 @Composable
-fun AiToolsScreen(
+fun IdeToolsScreen(
     distro: Distro,
     onBack: () -> Unit,
     onInstallComponent: (DistroComponent, Map<String, String>) -> Unit,
@@ -183,7 +145,7 @@ fun AiToolsScreen(
             TopAppBar(
                 title = {
                     Text(
-                        "AI Tools",
+                        "IDE & Code Editors",
                         color = MaterialTheme.colorScheme.secondary,
                         fontWeight = FontWeight.Bold
                     )
@@ -213,32 +175,29 @@ fun AiToolsScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp),
                 contentPadding = PaddingValues(top = 24.dp, bottom = 48.dp)
             ) {
-
-                // ── Header ─────────────────────────────────────────────────
                 item {
                     Column {
                         Text(
-                            "Terminal AI Agents",
+                            "Code Editors & IDEs",
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            "One-tap install for AI coding CLIs that run inside your Linux workspace.",
+                            "One-tap install for AI-powered code editors that run inside your Linux workspace.",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
 
-                // ── Tool Cards ─────────────────────────────────────────────
-                items(aiTools.size) { idx ->
-                    val tool = aiTools[idx]
+                items(ideTools.size) { idx ->
+                    val tool = ideTools[idx]
                     val isInstalled = remember(tool.id) {
                         StateManager.isComponentInstalled(context, distro.id, tool.component.id)
                     }
-                    AiToolCard(
+                    IdeToolCard(
                         tool = tool,
                         isInstalled = isInstalled,
                         onInstall = { onInstallComponent(tool.component, emptyMap()) }
@@ -249,12 +208,9 @@ fun AiToolsScreen(
     )
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Individual AI Tool Card
-// ─────────────────────────────────────────────────────────────────────────────
 @Composable
-fun AiToolCard(
-    tool: AiTool,
+fun IdeToolCard(
+    tool: IdeTool,
     isInstalled: Boolean,
     onInstall: () -> Unit
 ) {
@@ -283,12 +239,10 @@ fun AiToolCard(
             .padding(20.dp)
     ) {
         Column {
-            // ── Top row: icon + name + install badge ──────────────────────
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Logo
                 Box(
                     modifier = Modifier
                         .size(52.dp)
@@ -305,7 +259,7 @@ fun AiToolCard(
                         )
                     } else {
                         Icon(
-                            imageVector = Icons.Default.SmartToy,
+                            imageVector = Icons.Default.Laptop,
                             contentDescription = tool.name,
                             tint = tool.accentColor,
                             modifier = Modifier.size(28.dp)
@@ -323,7 +277,6 @@ fun AiToolCard(
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(modifier = Modifier.height(2.dp))
-                    // CLI command chip
                     Box(
                         modifier = Modifier
                             .background(tool.accentColor.copy(alpha = 0.12f), RoundedCornerShape(6.dp))
@@ -339,7 +292,6 @@ fun AiToolCard(
                     }
                 }
 
-                // Installed badge
                 if (isInstalled) {
                     Box(
                         modifier = Modifier
@@ -370,7 +322,6 @@ fun AiToolCard(
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            // ── Description ───────────────────────────────────────────────
             Text(
                 tool.description,
                 style = MaterialTheme.typography.bodySmall,
@@ -389,7 +340,6 @@ fun AiToolCard(
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.15f))
             Spacer(modifier = Modifier.height(14.dp))
 
-            // ── Install / Re-run button ───────────────────────────────────
             Button(
                 onClick = onInstall,
                 modifier = Modifier

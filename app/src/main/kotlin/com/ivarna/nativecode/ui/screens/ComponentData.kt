@@ -7,6 +7,7 @@ import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Gamepad
 import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.Laptop
 import androidx.compose.material.icons.filled.MovieCreation
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Security
@@ -195,9 +196,25 @@ val componentDetailsMap = mapOf(
         icon = Icons.Default.Code,
         packages = listOf(
             "Codex CLI (OpenAI)" to "~50 MB",
-            "More tools coming soon..." to "varies"
+            "Claude Code (Anthropic)" to "~60 MB",
+            "Gemini CLI (Google)" to "~50 MB",
+            "Cline (VS Code Agent)" to "~5 MB",
+            "KiloCode (VS Code Agent)" to "~5 MB",
+            "OpenCode (Go TUI)" to "~20 MB",
+            "Kiro CLI (Amazon)" to "~50 MB"
         ),
-        totalSizeValues = 0.1
+        totalSizeValues = 0.24
+    ),
+    "ide_tools" to ComponentDetail(
+        icon = Icons.Default.Laptop,
+        packages = listOf(
+            "VS Code" to "~350 MB",
+            "Cursor" to "~400 MB",
+            "Antigravity" to "~150 MB",
+            "Nexus (NativeCode)" to "~200 MB",
+            "Windsurf (Codeium)" to "~400 MB"
+        ),
+        totalSizeValues = 1.5
     ),
     "ai_tools_codex" to ComponentDetail(
         icon = Icons.Default.Code,
@@ -206,5 +223,90 @@ val componentDetailsMap = mapOf(
             "@openai/codex (npm global)" to "~50 MB"
         ),
         totalSizeValues = 0.11
+    ),
+    "ai_tools_claude_code" to ComponentDetail(
+        icon = Icons.Default.Code,
+        packages = listOf(
+            "Node.js v22 LTS (if missing)" to "~60 MB",
+            "@anthropic-ai/claude-code (npm global)" to "~60 MB"
+        ),
+        totalSizeValues = 0.12
+    ),
+    "ai_tools_gemini_cli" to ComponentDetail(
+        icon = Icons.Default.Code,
+        packages = listOf(
+            "Node.js v22 LTS (if missing)" to "~60 MB",
+            "@google/gemini-cli (npm global)" to "~50 MB"
+        ),
+        totalSizeValues = 0.11
+    ),
+    "ai_tools_cline" to ComponentDetail(
+        icon = Icons.Default.Code,
+        packages = listOf(
+            "Cline VS Code/Cursor Extension" to "~5 MB"
+        ),
+        totalSizeValues = 0.005
+    ),
+    "ai_tools_kilocode" to ComponentDetail(
+        icon = Icons.Default.Code,
+        packages = listOf(
+            "KiloCode VS Code/Cursor Extension" to "~5 MB"
+        ),
+        totalSizeValues = 0.005
+    ),
+    "ai_tools_opencode" to ComponentDetail(
+        icon = Icons.Default.Code,
+        packages = listOf(
+            "OpenCode Binary (ARM64)" to "~20 MB"
+        ),
+        totalSizeValues = 0.02
+    ),
+    "ai_tools_kiro_cli" to ComponentDetail(
+        icon = Icons.Default.Code,
+        packages = listOf(
+            "Node.js v22 LTS (if missing)" to "~60 MB",
+            "@anthropic-ai/kiro (npm global)" to "~50 MB"
+        ),
+        totalSizeValues = 0.11
+    ),
+    "ide_tools_vscode" to ComponentDetail(
+        icon = Icons.Default.Laptop,
+        packages = listOf(
+            "VS Code ARM64 Binary" to "~350 MB",
+            "Runtime Dependencies" to "~30 MB"
+        ),
+        totalSizeValues = 0.38
+    ),
+    "ide_tools_cursor" to ComponentDetail(
+        icon = Icons.Default.Laptop,
+        packages = listOf(
+            "Cursor AI Editor ARM64" to "~400 MB",
+            "Runtime Dependencies" to "~30 MB"
+        ),
+        totalSizeValues = 0.43
+    ),
+    "ide_tools_antigravity" to ComponentDetail(
+        icon = Icons.Default.Laptop,
+        packages = listOf(
+            "Antigravity AI Editor" to "~150 MB",
+            "Runtime Dependencies" to "~20 MB"
+        ),
+        totalSizeValues = 0.17
+    ),
+    "ide_tools_nexus" to ComponentDetail(
+        icon = Icons.Default.Laptop,
+        packages = listOf(
+            "Nexus IDE (NativeCode)" to "~200 MB",
+            "Runtime Dependencies" to "~20 MB"
+        ),
+        totalSizeValues = 0.22
+    ),
+    "ide_tools_windsurf" to ComponentDetail(
+        icon = Icons.Default.Laptop,
+        packages = listOf(
+            "Windsurf (Codeium) Editor" to "~400 MB",
+            "Runtime Dependencies" to "~30 MB"
+        ),
+        totalSizeValues = 0.43
     )
 )
