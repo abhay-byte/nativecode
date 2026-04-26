@@ -107,14 +107,26 @@ wget -q --show-progress "$OPENCODE_URL" -O /tmp/opencode.tar.gz 2>/dev/null || {
     
     echo "NativeCode: Building OpenCode from source..."
     export PATH=$PATH:/usr/local/go/bin
-    GOBIN=/usr/local/bin go install github.com/sst/opencode@latest || handle_error "OpenCode build from source"
+    
+    # Try standard cmd path first, then root path
+    if GOBIN=/usr/local/bin go install github.com/sst/opencode/cmd/opencode@latest 2>/dev/null; then
+        echo "NativeCode: OpenCode built from source (cmd/opencode)."
+    elif GOBIN=/usr/local/bin go install github.com/sst/opencode@latest 2>/dev/null; then
+        echo "NativeCode: OpenCode built from source (root package)."
+    else
+        echo "❌ NativeCode: Could not build OpenCode from source."
+        echo "The Go package path may have changed or the module structure is different."
+        echo "Please install OpenCode manually:"
+        echo "  1. Visit https://github.com/sst/opencode/releases"
+        echo "  2. Download the ARM64 binary"
+        echo "  3. Place it at $OPENCODE_ROOT/opencode"
+        handle_error "OpenCode build from source"
+    fi
     
     # Copy to expected location
     if [ -f "/usr/local/bin/opencode" ]; then
         cp /usr/local/bin/opencode "$OPENCODE_ROOT/opencode"
     fi
-    
-    echo "NativeCode: OpenCode built from source."
 }
 
 # If we downloaded a tarball, extract it
