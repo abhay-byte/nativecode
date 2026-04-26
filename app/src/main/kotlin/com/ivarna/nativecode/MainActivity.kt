@@ -288,15 +288,23 @@ class MainActivity : ComponentActivity() {
                         BottomTab.PROJECTS -> {
                             com.ivarna.nativecode.ui.screens.ProjectsScreen(
                                 hazeState = hazeState,
-                                onOpenWithCodex = { path ->
-                                    // Determine which distro to use — prefer the first installed PRoot distro
-                                    val installed = StateManager.getInstalledDistros(context)
-                                    val targetDistro = installed.firstOrNull() ?: "debian"
-                                    val intent = com.ivarna.nativecode.core.data.TermuxIntentFactory.buildLaunchCodexCliIntent(targetDistro, path)
+                                onLaunchTool = { tool, path ->
+                                    val intent = when (tool.type) {
+                                        com.ivarna.nativecode.ui.screens.ToolType.AI -> {
+                                            com.ivarna.nativecode.core.data.TermuxIntentFactory.buildLaunchToolCliIntent(
+                                                tool.distroId, path, tool.name, tool.command
+                                            )
+                                        }
+                                        com.ivarna.nativecode.ui.screens.ToolType.IDE -> {
+                                            com.ivarna.nativecode.core.data.TermuxIntentFactory.buildLaunchIdeIntent(
+                                                tool.distroId, path, tool.command
+                                            )
+                                        }
+                                    }
                                     try {
                                         onStartServiceStub(intent)
                                     } catch (e: Exception) {
-                                        android.util.Log.e("NativeCode", "Failed to launch Codex CLI", e)
+                                        android.util.Log.e("NativeCode", "Failed to launch ${tool.name}", e)
                                         android.widget.Toast.makeText(context, "Failed to launch Termux. Make sure it's installed.", android.widget.Toast.LENGTH_LONG).show()
                                     }
                                 }

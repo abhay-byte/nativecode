@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FolderOpen
+import androidx.compose.material.icons.filled.Laptop
 import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -39,11 +40,22 @@ import com.ivarna.nativecode.ui.theme.FluxAccentMagenta
 import dev.chrisbanes.haze.HazeState
 import kotlinx.coroutines.delay
 
+data class InstalledTool(
+    val id: String,
+    val name: String,
+    val command: String,
+    val type: ToolType, // AI or IDE
+    val accentColor: Color,
+    val distroId: String
+)
+
+enum class ToolType { AI, IDE }
+
 @Composable
 fun ProjectsScreen(
     hazeState: HazeState,
     onBack: (() -> Unit)? = null,
-    onOpenWithCodex: (String) -> Unit = {}
+    onLaunchTool: (InstalledTool, String) -> Unit = { _, _ -> }
 ) {
     val context = LocalContext.current
     var projectPaths by remember { mutableStateOf(StateManager.getProjectPaths(context).toList()) }
@@ -51,6 +63,48 @@ fun ProjectsScreen(
     // Agent selection dialog state
     var showAgentDialog by remember { mutableStateOf(false) }
     var selectedProjectPath by remember { mutableStateOf("") }
+
+    // Gather installed tools across all distros
+    val installedTools by remember {
+        derivedStateOf {
+            val tools = mutableListOf<InstalledTool>()
+            val installedDistros = StateManager.getInstalledDistros(context)
+
+            for (distroId in installedDistros) {
+                // Check AI tools
+                for (tool in aiTools) {
+                    if (StateManager.isComponentInstalled(context, distroId, tool.component.id)) {
+                        tools.add(
+                            InstalledTool(
+                                id = tool.id,
+                                name = tool.name,
+                                command = tool.command,
+                                type = ToolType.AI,
+                                accentColor = tool.accentColor,
+                                distroId = distroId
+                            )
+                        )
+                    }
+                }
+                // Check IDE tools
+                for (tool in ideTools) {
+                    if (StateManager.isComponentInstalled(context, distroId, tool.component.id)) {
+                        tools.add(
+                            InstalledTool(
+                                id = tool.id,
+                                name = tool.name,
+                                command = tool.command,
+                                type = ToolType.IDE,
+                                accentColor = tool.accentColor,
+                                distroId = distroId
+                            )
+                        )
+                    }
+                }
+            }
+            tools
+        }
+    }
 
     // Launcher for selecting a directory
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri: Uri? ->
@@ -148,10 +202,11 @@ fun ProjectsScreen(
     if (showAgentDialog) {
         AgentSelectionDialog(
             projectPath = selectedProjectPath,
+            installedTools = installedTools,
             onDismiss = { showAgentDialog = false },
-            onOpenWithCodex = {
+            onLaunchTool = { tool ->
                 showAgentDialog = false
-                onOpenWithCodex(selectedProjectPath)
+                onLaunchTool(tool, selectedProjectPath)
             },
             onCopyPath = {
                 val clip = android.content.ClipData.newPlainText("Project Path", selectedProjectPath)
@@ -467,8 +522,9 @@ fun EmptyProjectsState() {
 @Composable
 fun AgentSelectionDialog(
     projectPath: String,
+    installedTools: List<InstalledTool>,
     onDismiss: () -> Unit,
-    onOpenWithCodex: () -> Unit,
+    onLaunchTool: (InstalledTool) -> Unit,
     onCopyPath: () -> Unit,
     onRemove: () -> Unit
 ) {
@@ -561,16 +617,58 @@ fun AgentSelectionDialog(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Primary Action: Open with Codex
-                AgentActionButton(
-                    icon = Icons.Default.SmartToy,
-                    iconTint = Color(0xFF10A37F),
-                    label = "Open with Codex",
-                    description = "AI coding agent by OpenAI",
-                    onClick = onOpenWithCodex
-                )
+                // ── Installed Tools Section ─────────────────────────────
+                if (installedTools.isNotEmpty()) {
+                    Text(
+                        text = "Open With",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.secondary,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(start = 4.dp, bottom = 8.dp)
+                    )
 
-                Spacer(modifier = Modifier.height(12.dp))
+                    installedTools.forEach { tool ->
+                        val icon = when (tool.type) {
+                            ToolType.AI -> Icons.Default.SmartToy
+                            ToolType.IDE -> Icons.Default.Laptop
+                        }
+                        AgentActionButton(
+                            icon = icon,
+                            iconTint = tool.accentColor,
+                            label = tool.name,
+                            description = when (tool.type) {
+                                ToolType.AI -> "Terminal AI agent — ${tool.command}"
+                                ToolType.IDE -> "Code editor — ${tool.command}"
+                            },
+                            onClick = { onLaunchTool(tool) }
+                        )
+                        Spacer(modifier = Modifier.height(10.dp))
+                    }
+
+                    HorizontalDivider(
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.15f),
+                        modifier = Modifier.padding(vertical = 8.dp)
+                    )
+                } else {
+                    // No tools installed — show a helpful hint
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color.White.copy(alpha = 0.03f))
+                            .border(1.dp, Color.White.copy(alpha = 0.06f), RoundedCornerShape(12.dp))
+                            .padding(14.dp)
+                    ) {
+                        Text(
+                            text = "No AI or IDE tools installed yet.\nInstall them from Distro Settings → AI Tools / IDE & Code Editors.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
 
                 // Secondary: Copy Path
                 AgentActionButton(
@@ -581,7 +679,7 @@ fun AgentSelectionDialog(
                     onClick = onCopyPath
                 )
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
                 // Destructive: Remove
                 AgentActionButton(

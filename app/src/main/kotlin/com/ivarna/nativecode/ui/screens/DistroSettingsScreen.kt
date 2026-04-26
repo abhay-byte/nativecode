@@ -253,8 +253,8 @@ fun DistroSettingsScreen(
 
                 // ─── IDE & Code Editors Banner ──────────────────────────
                 item {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Box(
+                        Spacer(modifier = Modifier.height(8.dp))
+                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(20.dp))
@@ -351,7 +351,8 @@ fun DistroSettingsScreen(
                                     }
                                 }
                             }
-                        }
+                        },
+                        onShowIdeTools = { showIdeToolsScreen = true }
                     )
                 }
 
@@ -630,7 +631,8 @@ fun ComponentManagementGlassCard(
     component: DistroComponent,
     isInstalled: Boolean,
     details: ComponentDetail?,
-    onAction: () -> Unit
+    onAction: () -> Unit,
+    onShowIdeTools: () -> Unit = {}
 ) {
     var expanded by remember { mutableStateOf(false) }
 
@@ -784,7 +786,7 @@ Spacer(modifier = Modifier.height(8.dp))
                                 )
                             )
                             .border(1.dp, Color(0xFF007ACC).copy(alpha = 0.3f), RoundedCornerShape(20.dp))
-                            .clickable { showIdeToolsScreen = true }
+                            .clickable { onShowIdeTools() }
                             .padding(16.dp)
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
