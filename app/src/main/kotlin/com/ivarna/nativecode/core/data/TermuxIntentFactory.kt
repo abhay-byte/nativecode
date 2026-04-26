@@ -365,25 +365,25 @@ object TermuxIntentFactory {
 
     /**
      * Launches a CLI session inside the distro with the working directory
-     * set to [projectPath] and Codex on PATH. The user lands at an interactive
-     * bash prompt ready to run `codex <prompt>`.
+     * set to [projectPath] and Codex on PATH. Codex starts automatically in
+     * interactive mode.
      */
     fun buildLaunchCodexCliIntent(distroId: String, projectPath: String): Intent {
         val pathEscaped = projectPath.replace("\"", "\\\"")
-        val banner = "\\n\\033[1;36m[NativeCode Codex]\\033[0m Project: $pathEscaped\\n\\033[1;32mTip:\\033[0m Type: codex <your-prompt>\\n"
+        val banner = "\\n\\033[1;36m[NativeCode Codex]\\033[0m Project: $pathEscaped\\n\\033[1;32mLaunching Codex...\\033[0m\\n"
 
         val dollar = "${'$'}"
         val innerCommand = (
             "cd \"$pathEscaped\" 2>/dev/null || cd /home/flux || cd /home; " +
             "export PATH=\"${dollar}PATH:/opt/nodejs/bin:/usr/local/bin\"; " +
             "echo -e \"$banner\"; " +
-            "exec bash"
+            "exec codex"
         )
 
         return when {
             distroId == "termux" -> {
                 buildRunCommandIntent(
-                    "cd \"$pathEscaped\" 2>/dev/null || cd /home; export PATH=\"${dollar}PATH:/opt/nodejs/bin:/usr/local/bin\"; echo -e \"$banner\"; exec bash",
+                    "cd \"$pathEscaped\" 2>/dev/null || cd /home; export PATH=\"${dollar}PATH:/opt/nodejs/bin:/usr/local/bin\"; echo -e \"$banner\"; exec codex",
                     runInBackground = false
                 )
             }
@@ -399,7 +399,7 @@ object TermuxIntentFactory {
                     "cd \"$pathEscaped\" 2>/dev/null || cd /root || cd /home; " +
                     "export PATH=\"${dollar}PATH:/opt/nodejs/bin:/usr/local/bin\"; " +
                     "echo -e \"$banner\"; " +
-                    "exec bash"
+                    "exec codex"
                 )
                 val scriptB64 = android.util.Base64.encodeToString(script.toByteArray(), android.util.Base64.NO_WRAP)
                 val command = (
@@ -416,6 +416,260 @@ object TermuxIntentFactory {
             else -> {
                 // PRoot: pass the inner command to proot-distro login
                 val command = "proot-distro login $distroId --user flux -- bash -c '$innerCommand'"
+                buildRunCommandIntent(command, runInBackground = false)
+            }
+        }
+    }
+
+    /**
+     * Launches a generic CLI tool inside the distro with the working directory
+     * set to [projectPath]. The tool starts automatically in interactive mode.
+     */
+    fun buildLaunchToolCliIntent(distroId: String, projectPath: String, toolName: String, toolCommand: String): Intent {
+        val pathEscaped = projectPath.replace("\"", "\\\"")
+        val banner = "\\n\\033[1;36m[NativeCode]\\033[0m Project: $pathEscaped\\n\\033[1;32mLaunching $toolName...\\033[0m\\n"
+
+        val dollar = "${'$'}"
+        val innerCommand = (
+            "cd \"$pathEscaped\" 2>/dev/null || cd /home/flux || cd /home; " +
+            "export PATH=\"${dollar}PATH:/opt/nodejs/bin:/usr/local/bin:/usr/local/sbin\"; " +
+            "echo -e \"$banner\"; " +
+            "exec $toolCommand"
+        )
+
+        return when {
+            distroId == "termux" -> {
+                buildRunCommandIntent(
+                    "cd \"$pathEscaped\" 2>/dev/null || cd /home; export PATH=\"${dollar}PATH:/opt/nodejs/bin:/usr/local/bin:/usr/local/sbin\"; echo -e \"$banner\"; exec $toolCommand",
+                    runInBackground = false
+                )
+            }
+            distroId.contains("chroot") -> {
+                val chrootPath = when (distroId) {
+                    "debian13_chroot" -> "/data/local/tmp/chrootDebian13"
+                    "debian_chroot" -> "/data/local/tmp/chrootDebian"
+                    else -> "/data/local/tmp/chrootDebian13"
+                }
+                val termuxTmp = "/data/data/com.termux/files/usr/tmp"
+                val script = (
+                    "cd \"$pathEscaped\" 2>/dev/null || cd /root || cd /home; " +
+                    "export PATH=\"${dollar}PATH:/opt/nodejs/bin:/usr/local/bin:/usr/local/sbin\"; " +
+                    "echo -e \"$banner\"; " +
+                    "exec $toolCommand"
+                )
+                val scriptB64 = android.util.Base64.encodeToString(script.toByteArray(), android.util.Base64.NO_WRAP)
+                val command = (
+                    "su -c '" +
+                    "mkdir -p $termuxTmp; " +
+                    "echo \"$scriptB64\" | base64 -d > $termuxTmp/${toolCommand}_cli.sh; " +
+                    "chmod +x $termuxTmp/${toolCommand}_cli.sh; " +
+                    "busybox chroot $chrootPath /bin/su - root -c \"bash /tmp/${toolCommand}_cli.sh\"; " +
+                    "rm -f $termuxTmp/${toolCommand}_cli.sh; " +
+                    "'"
+                )
+                buildRunCommandIntent(command, runInBackground = false)
+            }
+            else -> {
+                val command = "proot-distro login $distroId --user flux -- bash -c '$innerCommand'"
+                buildRunCommandIntent(command, runInBackground = false)
+            }
+        }
+    }
+
+    /**
+     * Launches an IDE (GUI editor) inside the distro with the project path as argument.
+     * Sets up Termux-X11 display server so the IDE renders properly.
+     * e.g. code /project/path, cursor /project/path
+     */
+    fun buildLaunchIdeIntent(distroId: String, projectPath: String, ideCommand: String): Intent {
+        val pathEscaped = projectPath.replace("\"", "\\\"")
+        val banner = "\\n\\033[1;36m[NativeCode IDE]\\033[0m Launching $ideCommand...\\n"
+
+        val dollar = "${'$'}"
+
+        // Inner script that runs inside the distro and keeps the session alive
+        val innerScript = """
+            export DISPLAY=:0
+            export PULSE_SERVER=tcp:127.0.0.1
+            export XDG_RUNTIME_DIR=${dollar}{TMPDIR}
+            su - flux -c "
+                export DISPLAY=:0
+                export PULSE_SERVER=tcp:127.0.0.1
+                export XDG_RUNTIME_DIR=${dollar}{TMPDIR}
+                nohup $ideCommand \\"$pathEscaped\\" >/dev/null 2>&1 &
+            "
+            sleep 2
+            echo '[NativeCode] IDE running. Session active...'
+            while true; do
+                sleep 5
+                if pidof $ideCommand >/dev/null 2>&1; then continue; fi
+                if ps -eo comm= 2>/dev/null | grep -v grep | grep -q $ideCommand; then continue; fi
+                # Fallback: keep alive for safety
+                continue
+            done
+        """.trimIndent()
+        val innerB64 = android.util.Base64.encodeToString(innerScript.toByteArray(), android.util.Base64.NO_WRAP)
+
+        return when {
+            distroId == "termux" -> {
+                val command = """
+                    echo -e "$banner"
+
+                    # Kill existing X11
+                    kill -9 ${dollar}(pgrep -f "termux.x11") 2>/dev/null
+
+                    # Start VirGL (Turnip GPU) if available
+                    if [ -x "${dollar}PREFIX/bin/virgl_test_server_android" ]; then
+                        nohup setsid ${dollar}PREFIX/bin/virgl_test_server_android >/dev/null 2>&1 &
+                        sleep 1
+                        echo "[OK] VirGL server started"
+                    fi
+
+                    # Start PulseAudio
+                    pulseaudio --start --load="module-native-protocol-tcp auth-ip-acl=127.0.0.1 auth-anonymous=1" --exit-idle-time=-1
+
+                    # Start termux-x11
+                    export XDG_RUNTIME_DIR=${dollar}{TMPDIR}
+                    termux-x11 :0 >/dev/null &
+                    sleep 3
+
+                    # Launch Termux X11 activity
+                    am start --user 0 -n com.termux.x11/com.termux.x11.MainActivity > /dev/null 2>&1
+                    sleep 1
+
+                    # Run IDE
+                    export PULSE_SERVER=127.0.0.1
+                    env DISPLAY=:0 $ideCommand "$pathEscaped" &
+                    sleep 2
+                    echo "[NativeCode] IDE running. Session active..."
+                    while true; do
+                        sleep 5
+                        if pidof $ideCommand >/dev/null 2>&1; then continue; fi
+                        if ps -eo comm= 2>/dev/null | grep -v grep | grep -q $ideCommand; then continue; fi
+                        continue
+                    done
+                """.trimIndent()
+                buildRunCommandIntent(command, runInBackground = false)
+            }
+            distroId.contains("chroot") -> {
+                val chrootPath = when (distroId) {
+                    "debian13_chroot" -> "/data/local/tmp/chrootDebian13"
+                    "debian_chroot" -> "/data/local/tmp/chrootDebian"
+                    else -> "/data/local/tmp/chrootDebian13"
+                }
+
+                val command = if (distroId == "debian13_chroot") {
+                    """
+                    echo -e "$banner"
+                    echo "NativeCode: Starting services in Termux context..."
+
+                    # VirGL server (Turnip GPU)
+                    if [ -x "${dollar}PREFIX/bin/virgl_test_server_android" ]; then
+                        nohup setsid ${dollar}PREFIX/bin/virgl_test_server_android >/dev/null 2>&1 &
+                        sleep 1
+                        echo "[OK] VirGL server started"
+                    fi
+
+                    # PulseAudio server
+                    ${dollar}PREFIX/bin/pulseaudio --start --load="module-native-protocol-tcp auth-ip-acl=127.0.0.1 auth-anonymous=1" --exit-idle-time=-1 2>/dev/null
+                    ${dollar}PREFIX/bin/pacmd load-module module-native-protocol-tcp auth-ip-acl=127.0.0.1 auth-anonymous=1 >/dev/null 2>&1 || true
+                    echo "[OK] PulseAudio started"
+
+                    # Start termux-x11
+                    export XDG_RUNTIME_DIR=${dollar}{TMPDIR}
+                    termux-x11 :0 >/dev/null &
+                    sleep 3
+
+                    # Launch Termux X11 activity
+                    am start --user 0 -n com.termux.x11/com.termux.x11.MainActivity > /dev/null 2>&1
+                    sleep 1
+
+                    echo "NativeCode: Launching IDE inside Chroot..."
+                    su -c '
+                        mount -o remount,dev,suid /data >/dev/null 2>&1
+                        mount -t proc proc $chrootPath/proc >/dev/null 2>&1
+                        mount -t sysfs sysfs $chrootPath/sys >/dev/null 2>&1
+                        mount -o bind /dev $chrootPath/dev >/dev/null 2>&1
+                        mount -o bind /dev/pts $chrootPath/dev/pts >/dev/null 2>&1
+                        mkdir -p $chrootPath/dev/shm
+                        mount -t tmpfs -o size=512M tmpfs $chrootPath/dev/shm >/dev/null 2>&1
+                        mkdir -p $chrootPath/tmp
+                        mount --bind /data/data/com.termux/files/usr/tmp $chrootPath/tmp >/dev/null 2>&1
+                        busybox chroot $chrootPath /bin/bash -c "echo \"$innerB64\" | base64 -d | bash"
+                    '
+                    """.trimIndent()
+                } else {
+                    """
+                    echo -e "$banner"
+                    echo "NativeCode: Starting services in Termux context..."
+
+                    # VirGL server (Turnip GPU)
+                    if [ -x "${dollar}PREFIX/bin/virgl_test_server_android" ]; then
+                        nohup setsid ${dollar}PREFIX/bin/virgl_test_server_android >/dev/null 2>&1 &
+                        sleep 1
+                        echo "[OK] VirGL server started"
+                    fi
+
+                    # PulseAudio server
+                    pulseaudio --start --load="module-native-protocol-tcp auth-ip-acl=127.0.0.1 auth-anonymous=1" --exit-idle-time=-1 2>/dev/null
+                    echo "[OK] PulseAudio started"
+
+                    # Start termux-x11
+                    export XDG_RUNTIME_DIR=${dollar}{TMPDIR}
+                    termux-x11 :0 >/dev/null &
+                    sleep 3
+
+                    # Launch Termux X11 activity
+                    am start --user 0 -n com.termux.x11/com.termux.x11.MainActivity > /dev/null 2>&1
+                    sleep 1
+
+                    echo "NativeCode: Launching IDE inside Chroot..."
+                    su -c '
+                        mount -o remount,dev,suid /data >/dev/null 2>&1
+                        mount -t proc proc $chrootPath/proc >/dev/null 2>&1
+                        mount -t sysfs sysfs $chrootPath/sys >/dev/null 2>&1
+                        mount -o bind /dev $chrootPath/dev >/dev/null 2>&1
+                        mount -o bind /dev/pts $chrootPath/dev/pts >/dev/null 2>&1
+                        mkdir -p $chrootPath/dev/shm
+                        mount -t tmpfs -o size=512M tmpfs $chrootPath/dev/shm >/dev/null 2>&1
+                        mkdir -p $chrootPath/tmp
+                        mount --bind /data/data/com.termux/files/usr/tmp $chrootPath/tmp >/dev/null 2>&1
+                        busybox chroot $chrootPath /bin/bash -c "echo \"$innerB64\" | base64 -d | bash"
+                    '
+                    """.trimIndent()
+                }
+                buildRunCommandIntent(command, runInBackground = false)
+            }
+            else -> {
+                // PRoot
+                val command = """
+                    echo -e "$banner"
+
+                    # Kill existing X11
+                    kill -9 ${dollar}(pgrep -f "termux.x11") 2>/dev/null
+
+                    # Start VirGL (Turnip GPU) if available
+                    if [ -x "${dollar}PREFIX/bin/virgl_test_server_android" ]; then
+                        nohup setsid ${dollar}PREFIX/bin/virgl_test_server_android >/dev/null 2>&1 &
+                        sleep 1
+                        echo "[OK] VirGL server started"
+                    fi
+
+                    # Start PulseAudio
+                    pulseaudio --start --load="module-native-protocol-tcp auth-ip-acl=127.0.0.1 auth-anonymous=1" --exit-idle-time=-1
+
+                    # Start termux-x11
+                    export XDG_RUNTIME_DIR=${dollar}{TMPDIR}
+                    termux-x11 :0 >/dev/null &
+                    sleep 3
+
+                    # Launch Termux X11 activity
+                    am start --user 0 -n com.termux.x11/com.termux.x11.MainActivity > /dev/null 2>&1
+                    sleep 1
+
+                    # Run IDE inside PRoot via base64-decoded inner script
+                    proot-distro login $distroId --shared-tmp -- bash -c "echo '$innerB64' | base64 -d | bash"
+                """.trimIndent()
                 buildRunCommandIntent(command, runInBackground = false)
             }
         }
