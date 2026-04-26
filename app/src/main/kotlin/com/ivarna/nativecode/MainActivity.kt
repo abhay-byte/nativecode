@@ -106,20 +106,27 @@ class MainActivity : ComponentActivity() {
                      StateManager.setComponentInstalled(this, distroId, currentTask.id, true)
                  }
                  StateManager.triggerRefresh()
-             } else {
-                 if (scriptName.startsWith("distro_install_")) {
-                     val distroId = scriptName.removePrefix("distro_install_")
-                     StateManager.setDistroInstalled(this, distroId, true)
-                     android.widget.Toast.makeText(this, "$distroId Installed! ✅", android.widget.Toast.LENGTH_LONG).show()
-                 } else if (scriptName.startsWith("distro_uninstall_")) {
-                     val distroId = scriptName.removePrefix("distro_uninstall_")
-                     StateManager.clearDistroState(this, distroId)
-                     android.widget.Toast.makeText(this, "$distroId Uninstalled! 🗑️", android.widget.Toast.LENGTH_LONG).show()
-                 } else {
-                     StateManager.setScriptStatus(this, scriptName, true)
-                     android.widget.Toast.makeText(this, "Script '$scriptName' details saved.", android.widget.Toast.LENGTH_SHORT).show()
-                 }
-             }
+              } else {
+                  if (scriptName.startsWith("distro_install_")) {
+                      val distroId = scriptName.removePrefix("distro_install_")
+                      StateManager.setDistroInstalled(this, distroId, true)
+                      android.widget.Toast.makeText(this, "$distroId Installed! ✅", android.widget.Toast.LENGTH_LONG).show()
+                  } else if (scriptName.startsWith("distro_uninstall_")) {
+                      val distroId = scriptName.removePrefix("distro_uninstall_")
+                      StateManager.clearDistroState(this, distroId)
+                      android.widget.Toast.makeText(this, "$distroId Uninstalled! 🗑️", android.widget.Toast.LENGTH_LONG).show()
+                  } else {
+                      // Tool/IDE install callback (app may have restarted, so currentTask is null)
+                      StateManager.setScriptStatus(this, scriptName, true)
+                      // Mark component as installed for all distros so UI shows "Installed"
+                      val installedDistros = StateManager.getInstalledDistros(this)
+                      for (distroId in installedDistros) {
+                          StateManager.setComponentInstalled(this, distroId, scriptName, true)
+                      }
+                      android.widget.Toast.makeText(this, "Tool '$scriptName' installed! ✅", android.widget.Toast.LENGTH_SHORT).show()
+                      StateManager.triggerRefresh()
+                  }
+              }
 
              processNextInstallTask()
         } else {
