@@ -203,10 +203,10 @@ fun HomeScreen(
         modifier = Modifier
             .fillMaxSize()
             .padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(24.dp),
+        verticalArrangement = Arrangement.spacedBy(28.dp),
         contentPadding = PaddingValues(top = 24.dp, bottom = 48.dp)
     ) {
-        // ── Section 1: Debian Hero Card ──────────────────────────────
+        // ── 1. Debian Hero Card ──────────────────────────────────────
         item {
             DebianHeroCard(
                 distro = debianDistro,
@@ -261,7 +261,7 @@ fun HomeScreen(
         }
 
         if (isInstalled) {
-            // ── Section 2: AI & IDE Tools Banners ────────────────────────
+            // ── 2. AI & IDE Tools Banners ────────────────────────────
             item {
                 Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                     ToolBanner(
@@ -283,81 +283,76 @@ fun HomeScreen(
                 }
             }
 
-            // ── Section 3: Configuration ────────────────────────────────
+            // ── 3. Projects ───────────────────────────────────────────
             item {
-                Text(
-                    "Configuration",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.secondary
-                )
-            }
-            
-            item {
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    ConfigCard(
-                        modifier = Modifier.weight(1f),
-                        title = "Theme",
-                        value = "XFCE / KDE",
-                        icon = Icons.Default.Palette,
-                        onClick = { showThemeDialog = true }
-                    )
-                    ConfigCard(
-                        modifier = Modifier.weight(1f),
-                        title = "GPU Accel",
-                        value = StateManager.getHardwareAccelType(context, debianDistro.id).uppercase(),
-                        icon = Icons.Default.Speed,
-                        onClick = { showGpuDialog = true }
-                    )
-                }
-            }
-        }
-
-        // ── Section 4: Projects ──────────────────────────────────────
-        item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    "Projects",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.secondary
-                )
-                TextButton(onClick = { launcher.launch(null) }) {
-                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Add Folder", fontWeight = FontWeight.Bold)
-                }
-            }
-        }
-
-        if (projectPaths.isEmpty()) {
-            item { EmptyProjectsState() }
-        } else {
-            itemsIndexed(projectPaths) { index, path ->
-                var visible by remember { mutableStateOf(false) }
-                LaunchedEffect(Unit) {
-                    delay(index * 50L)
-                    visible = true
-                }
-                AnimatedVisibility(visible = visible, enter = fadeIn() + scaleIn(initialScale = 0.95f)) {
-                    ProjectGlassCard(
-                        path = path,
-                        onClick = { selectedProjectPath = path; showAgentDialog = true },
-                        onDelete = {
-                            StateManager.removeProjectPath(context, path)
-                            projectPaths = StateManager.getProjectPaths(context).toList()
+                Column {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "Workspace Projects",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.secondary
+                        )
+                        TextButton(onClick = { launcher.launch(null) }) {
+                            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Add Folder", fontWeight = FontWeight.Bold)
                         }
-                    )
+                    }
+                    
+                    if (projectPaths.isEmpty()) {
+                        EmptyProjectsState()
+                    } else {
+                        projectPaths.forEachIndexed { index, path ->
+                            ProjectGlassCard(
+                                path = path,
+                                onClick = { selectedProjectPath = path; showAgentDialog = true },
+                                onDelete = {
+                                    StateManager.removeProjectPath(context, path)
+                                    projectPaths = StateManager.getProjectPaths(context).toList()
+                                }
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+                        }
+                    }
                 }
-                Spacer(modifier = Modifier.height(12.dp))
+            }
+
+            // ── 4. Configuration ─────────────────────────────────────
+            item {
+                Column {
+                    Text(
+                        "System Configuration",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.secondary
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        ConfigCard(
+                            modifier = Modifier.weight(1f),
+                            title = "Interface Theme",
+                            value = "XFCE / KDE",
+                            icon = Icons.Default.Palette,
+                            onClick = { showThemeDialog = true }
+                        )
+                        ConfigCard(
+                            modifier = Modifier.weight(1f),
+                            title = "Graphics Engine",
+                            value = StateManager.getHardwareAccelType(context, debianDistro.id).uppercase(),
+                            icon = Icons.Default.Speed,
+                            onClick = { showGpuDialog = true }
+                        )
+                    }
+                }
             }
         }
         
-        item { Spacer(modifier = Modifier.height(20.dp)) }
+        item { Spacer(modifier = Modifier.height(40.dp)) }
     }
 
     // ── Dialogs ──────────────────────────────────────────────────
@@ -381,6 +376,94 @@ fun HomeScreen(
                 showAgentDialog = false
             }
         )
+    }
+
+    // ── Configuration Dialogs ─────────────────────────────────────
+    
+    if (showThemeDialog) {
+        GlassDialog(onDismiss = { showThemeDialog = false }) {
+            Column(modifier = Modifier.padding(24.dp)) {
+                Text("Customize Desktop", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.secondary)
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                SettingsThemeOption(name = "Dark Mode (Default)", desc = "Sleek and professional.", id = "dark", selected = selectedTheme == "dark", onSelect = { selectedTheme = "dark" })
+                SettingsThemeOption(name = "Light Mode", desc = "Clean and bright.", id = "light", selected = selectedTheme == "light", onSelect = { selectedTheme = "light" })
+                
+                Spacer(modifier = Modifier.height(24.dp))
+                Button(
+                    onClick = {
+                        showThemeDialog = false
+                        // We need the 'customization' component for Debian
+                        val component = debianDistro.components.find { it.id == "customization" }
+                        if (component != null) {
+                            onInstallComponent(component, mapOf("FLUX_THEME" to selectedTheme))
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth().height(50.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                ) {
+                    Text("Apply Theme")
+                }
+            }
+        }
+    }
+
+    if (showGpuDialog) {
+        GlassDialog(onDismiss = { showGpuDialog = false }) {
+            Column(modifier = Modifier.padding(24.dp)) {
+                Text("Hardware Acceleration", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.secondary)
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                SettingsThemeOption(name = "Auto Detect", desc = "Recommended for most devices.", id = "auto", selected = selectedGpu == "auto", onSelect = { selectedGpu = "auto" })
+                SettingsThemeOption(name = "VirGL (Universal)", desc = "Compatible with most devices.", id = "virgl", selected = selectedGpu == "virgl", onSelect = { selectedGpu = "virgl" })
+                SettingsThemeOption(name = "Turnip/Zink", desc = "High performance for Snapdragon.", id = "turnip", selected = selectedGpu == "turnip", onSelect = { selectedGpu = "turnip" })
+                
+                Spacer(modifier = Modifier.height(24.dp))
+                Button(
+                    onClick = {
+                        showGpuDialog = false
+                        val component = debianDistro.components.find { it.id == "hw_accel" }
+                        if (component != null) {
+                            onInstallComponent(component, mapOf("FLUX_GPU" to selectedGpu))
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth().height(50.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                ) {
+                    Text("Apply Configuration")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun GlassDialog(onDismiss: () -> Unit, content: @Composable () -> Unit) {
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth(0.9f)
+                .clip(RoundedCornerShape(28.dp))
+                .background(Color(0xFF1A1A1A))
+                .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(28.dp))
+        ) {
+            content()
+        }
+    }
+}
+
+@Composable
+fun SettingsThemeOption(name: String, desc: String, id: String, selected: Boolean, onSelect: () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth().clickable { onSelect() }.padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        RadioButton(selected = selected, onClick = onSelect, colors = RadioButtonDefaults.colors(selectedColor = MaterialTheme.colorScheme.secondary))
+        Spacer(modifier = Modifier.width(8.dp))
+        Column {
+            Text(name, fontWeight = FontWeight.SemiBold, color = if(selected) MaterialTheme.colorScheme.secondary else Color.White)
+            Text(desc, fontSize = 11.sp, color = Color.White.copy(alpha = 0.5f))
+        }
     }
 }
 
