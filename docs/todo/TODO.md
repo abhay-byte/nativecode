@@ -89,6 +89,14 @@ Tracking pending tasks for the FluxLinux → NativeCode upgrade.
 - [ ] Toast/snackbar for "Codex session started in Termux"
 - [ ] Build, install, and verify on device
 
+### Phase 8: UI Overhaul (Unified Dashboard)
+- [ ] Refactor `MainActivity.kt` to remove Bottom Navigation
+- [ ] Consolidate Distro management, Settings, Tools, and Projects into `HomeScreen.kt`
+- [ ] Implement Glassmorphism "Debian Hero Card" with direct launch buttons
+- [ ] Add AI Tools and IDE Editors banners to main dashboard
+- [ ] Port Project management workflow to the bottom of the dashboard
+- [ ] Maintain all existing logic while achieving a stunning, unified aesthetic
+
 ---
 
 ## 📝 Notes

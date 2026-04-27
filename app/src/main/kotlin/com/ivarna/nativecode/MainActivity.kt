@@ -225,8 +225,6 @@ class MainActivity : ComponentActivity() {
                     mutableStateOf(if (onboardingComplete) Screen.HOME else Screen.ONBOARDING) 
                 }
                 
-                var currentTab by remember { mutableStateOf(BottomTab.HOME) }
-                
                 // Selected Distro for Wizard/Settings
                 var selectedDistro by remember { mutableStateOf<com.ivarna.nativecode.core.data.Distro?>(null) }
                 
@@ -265,124 +263,6 @@ class MainActivity : ComponentActivity() {
                     currentScreen = Screen.DISTRO_SETTINGS
                 }
                 
-                @Composable
-                fun MainScreenContent(
-                    tab: BottomTab,
-                    hazeState: HazeState
-                ) {
-                    when (tab) {
-                        BottomTab.HOME -> {
-                            com.ivarna.nativecode.ui.screens.HomeScreen(
-                                permissionState = permissionState,
-                                hazeState = hazeState,
-                                scriptRefreshTrigger = refreshKey + lifecycleRefreshKey,
-                                onStartService = onStartServiceStub,
-                                onStartActivity = onStartActivityStub,
-                                // Pass navigation callbacks
-                                onNavigateToInstall = onNavigateToInstall,
-                                onNavigateToSettings = onNavigateToDistroSettings
-                            )
-                        }
-                        BottomTab.DISTROS -> {
-                            com.ivarna.nativecode.ui.screens.DistroScreen(
-                                permissionState = permissionState,
-                                hazeState = hazeState,
-                                onStartService = onStartServiceStub,
-                                onStartActivity = onStartActivityStub,
-                                onNavigateToInstall = onNavigateToInstall
-                            )
-                        }
-                        BottomTab.PROJECTS -> {
-                            com.ivarna.nativecode.ui.screens.ProjectsScreen(
-                                hazeState = hazeState,
-                                onLaunchTool = { tool, path ->
-                                    val intent = when (tool.type) {
-                                        com.ivarna.nativecode.ui.screens.ToolType.AI -> {
-                                            com.ivarna.nativecode.core.data.TermuxIntentFactory.buildLaunchToolCliIntent(
-                                                tool.distroId, path, tool.name, tool.command
-                                            )
-                                        }
-                                        com.ivarna.nativecode.ui.screens.ToolType.IDE -> {
-                                            com.ivarna.nativecode.core.data.TermuxIntentFactory.buildLaunchIdeIntent(
-                                                tool.distroId, path, tool.command
-                                            )
-                                        }
-                                    }
-                                    try {
-                                        onStartServiceStub(intent)
-                                    } catch (e: Exception) {
-                                        android.util.Log.e("NativeCode", "Failed to launch ${tool.name}", e)
-                                        android.widget.Toast.makeText(context, "Failed to launch Termux. Make sure it's installed.", android.widget.Toast.LENGTH_LONG).show()
-                                    }
-                                }
-                            )
-                        }
-                    }
-                }
-
-                // Helper for Top Bar
-                @Composable
-                fun TopBar(
-                    hazeState: HazeState,
-                    onSettingsClick: () -> Unit
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .hazeChild(
-                                state = hazeState,
-                                style = HazeStyle(
-                                    backgroundColor = MaterialTheme.colorScheme.background.copy(alpha = 0.7f),
-                                    blurRadius = 20.dp,
-                                    tint = null
-                                )
-                            )
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 12.dp)
-                                .windowInsetsPadding(WindowInsets.statusBars),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Image(
-                                    painter = painterResource(id = R.drawable.ic_logo),
-                                    contentDescription = "Logo",
-                                    modifier = Modifier.size(32.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = "NativeCode",
-                                    color = MaterialTheme.colorScheme.onBackground,
-                                    fontSize = 20.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                            
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                if (StateManager.isTermuxInstalled(LocalContext.current)) {
-                                   Text(
-                                       text = StateManager.getPackageSize(LocalContext.current, "com.termux"),
-                                       style = MaterialTheme.typography.labelSmall,
-                                       color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f),
-                                       modifier = Modifier.padding(end = 8.dp)
-                                   )
-                                }
-                                
-                                IconButton(onClick = onSettingsClick) {
-                                    Icon(
-                                        imageVector = Icons.Default.Settings,
-                                        contentDescription = "Settings",
-                                        tint = MaterialTheme.colorScheme.onBackground
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-                
                 // Show appropriate screen based on state
                 when (currentScreen) {
                     Screen.ONBOARDING -> {
@@ -402,27 +282,36 @@ class MainActivity : ComponentActivity() {
                     }
                     Screen.HOME -> {
                         val hazeState = remember { HazeState() }
-                        GlassScaffold(
+                        com.ivarna.nativecode.ui.screens.HomeScreen(
+                            permissionState = permissionState,
                             hazeState = hazeState,
-                            topBar = {
-                                TopBar(
-                                    hazeState = hazeState,
-                                    onSettingsClick = { currentScreen = Screen.SETTINGS }
-                                )
-                            },
-                            bottomBar = {
-                                GlassBottomNavigation(
-                                    selectedTab = currentTab,
-                                    onTabSelected = { currentTab = it },
-                                    hazeState = hazeState
-                                )
+                            scriptRefreshTrigger = refreshKey + lifecycleRefreshKey,
+                            onStartService = onStartServiceStub,
+                            onStartActivity = onStartActivityStub,
+                            onNavigateToInstall = onNavigateToInstall,
+                            onNavigateToSettings = onNavigateToDistroSettings,
+                            onNavigateToSettingsScreen = { currentScreen = Screen.SETTINGS },
+                            onLaunchTool = { tool, path ->
+                                val intent = when (tool.type) {
+                                    com.ivarna.nativecode.ui.screens.ToolType.AI -> {
+                                        com.ivarna.nativecode.core.data.TermuxIntentFactory.buildLaunchToolCliIntent(
+                                            tool.distroId, path, tool.name, tool.command
+                                        )
+                                    }
+                                    com.ivarna.nativecode.ui.screens.ToolType.IDE -> {
+                                        com.ivarna.nativecode.core.data.TermuxIntentFactory.buildLaunchIdeIntent(
+                                            tool.distroId, path, tool.command
+                                        )
+                                    }
+                                }
+                                try {
+                                    onStartServiceStub(intent)
+                                } catch (e: Exception) {
+                                    android.util.Log.e("NativeCode", "Failed to launch ${tool.name}", e)
+                                    android.widget.Toast.makeText(context, "Failed to launch Termux. Make sure it's installed.", android.widget.Toast.LENGTH_LONG).show()
+                                }
                             }
-                        ) {
-                            MainScreenContent(
-                                tab = currentTab,
-                                hazeState = hazeState
-                            )
-                        }
+                        )
                     }
                     Screen.SETTINGS -> {
                         com.ivarna.nativecode.ui.screens.SettingsScreen(
