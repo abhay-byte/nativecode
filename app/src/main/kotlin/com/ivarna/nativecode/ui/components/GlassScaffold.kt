@@ -10,8 +10,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.graphics.luminance
 import com.ivarna.nativecode.ui.theme.FluxBackgroundEnd
 import com.ivarna.nativecode.ui.theme.FluxBackgroundMid
 import com.ivarna.nativecode.ui.theme.FluxBackgroundStart
@@ -28,7 +26,15 @@ fun GlassScaffold(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(androidx.compose.material3.MaterialTheme.colorScheme.background)
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(
+                        FluxBackgroundStart,
+                        FluxBackgroundMid,
+                        FluxBackgroundEnd
+                    )
+                )
+            )
     ) {
         Scaffold(
             containerColor = Color.Transparent,
@@ -38,7 +44,7 @@ fun GlassScaffold(
                     modifier = Modifier
                         .fillMaxSize()
                         .haze(state = hazeState)
-                        .padding(top = paddingValues.calculateTopPadding()) // Only respect top padding from Scaffold
+                        .padding(top = paddingValues.calculateTopPadding())
                 ) {
                     content()
                 }

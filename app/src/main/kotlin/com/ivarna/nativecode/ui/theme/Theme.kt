@@ -42,8 +42,8 @@ private val LightColorScheme = lightColorScheme(
 
 @Composable
 fun NativeCodeTheme(
-    themeMode: com.ivarna.nativecode.core.utils.ThemeMode = com.ivarna.nativecode.core.utils.ThemeMode.SYSTEM,
-    dynamicColor: Boolean = true,
+    themeMode: com.ivarna.nativecode.core.utils.ThemeMode = com.ivarna.nativecode.core.utils.ThemeMode.DARK,
+    dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val darkTheme = when (themeMode) {

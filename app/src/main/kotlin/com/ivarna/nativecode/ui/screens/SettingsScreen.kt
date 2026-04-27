@@ -815,7 +815,7 @@ fun SettingsScreen(
                                 contentAlignment = Alignment.Center
                             ) {
                                 Image(
-                                    painter = painterResource(id = R.drawable.ic_logo),
+                                    painter = painterResource(id = R.drawable.logo),
                                     contentDescription = "NativeCode Logo",
                                     modifier = Modifier.size(48.dp), // Slightly larger for visibility
                                     contentScale = ContentScale.Fit

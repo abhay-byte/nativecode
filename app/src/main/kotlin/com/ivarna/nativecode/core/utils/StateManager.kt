@@ -390,4 +390,21 @@ object StateManager {
         prefs.edit().putStringSet("project_paths", currentPaths).apply()
     }
 
+    /**
+     * Get hardware acceleration type for a distro ("auto", "virgl", "turnip", "none")
+     */
+    fun getHardwareAccelType(context: Context, distroId: String): String {
+        val prefs = context.getSharedPreferences("nativecode_state", Context.MODE_PRIVATE)
+        return prefs.getString("distro_${distroId}_hw_accel", "auto") ?: "auto"
+    }
+
+    /**
+     * Set hardware acceleration type for a distro
+     */
+    fun setHardwareAccelType(context: Context, distroId: String, type: String) {
+        val prefs = context.getSharedPreferences("nativecode_state", Context.MODE_PRIVATE)
+        prefs.edit().putString("distro_${distroId}_hw_accel", type).apply()
+        android.util.Log.d("StateManager", "Distro $distroId hardware accel set to: $type")
+    }
+
 }
