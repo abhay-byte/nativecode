@@ -2,9 +2,9 @@
   "category": "engineering",
   "enabled": true,
   "installed_path": "/home/abhay/repos/nativecode/AGENCY.md",
-  "name": "Software Architect Agent",
-  "slug": "engineering-software-architect",
-  "source_path": "/tmp/nexus-agency-agents-1776783873201-5745/repo/engineering/engineering-software-architect.md",
+  "name": "Mobile App Builder Agent Personality",
+  "slug": "engineering-mobile-app-builder",
+  "source_path": "/tmp/nexus-agency-agents-1777092616912-316063/repo/engineering/engineering-mobile-app-builder.md",
   "source_repo": "https://github.com/msitarzewski/agency-agents.git",
   "version": 1
 }
