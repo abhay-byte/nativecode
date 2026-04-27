@@ -43,7 +43,64 @@ import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
 import dev.chrisbanes.haze.materials.HazeMaterials
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalPermissionsApi::class, ExperimentalHazeMaterialsApi::class)
+package com.ivarna.nativecode.ui.screens
+
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.*
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.*
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.ivarna.nativecode.R
+import com.ivarna.nativecode.core.data.Distro
+import com.ivarna.nativecode.core.data.DistroComponent
+import com.ivarna.nativecode.core.data.DistroRepository
+import com.ivarna.nativecode.core.data.TermuxIntentFactory
+import com.ivarna.nativecode.core.utils.StateManager
+import com.ivarna.nativecode.ui.theme.*
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.PermissionState
+import com.google.accompanist.permissions.isGranted
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.hazeChild
+import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
+import dev.chrisbanes.haze.materials.HazeMaterials
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+
+data class InstalledTool(
+    val id: String,
+    val name: String,
+    val command: String,
+    val type: ToolType,
+    val accentColor: Color,
+    val distroId: String
+)
+
+@OptIn(ExperimentalPermissionsApi::class, ExperimentalHazeMaterialsApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     permissionState: PermissionState,
@@ -51,447 +108,554 @@ fun HomeScreen(
     scriptRefreshTrigger: Int = 0,
     onStartService: (android.content.Intent) -> Unit,
     onStartActivity: (android.content.Intent) -> Unit,
-    onNavigateToInstall: (com.ivarna.nativecode.core.data.Distro) -> Unit,
-    onNavigateToSettings: (com.ivarna.nativecode.core.data.Distro) -> Unit
+    onNavigateToInstall: (Distro) -> Unit,
+    onNavigateToSettings: (Distro) -> Unit,
+    onNavigateToSettingsScreen: () -> Unit,
+    onLaunchTool: (InstalledTool, String) -> Unit,
+    onInstallComponent: (DistroComponent, Map<String, String>) -> Unit
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
-    
-    // State for Launch Popup
-    val distroToLaunch = remember { mutableStateOf<com.ivarna.nativecode.core.data.Distro?>(null) }
-    
-    // Refresh key to trigger recomposition
     val refreshKey = remember { mutableStateOf(0) }
 
-    // React to external refresh trigger (from MainActivity)
+    // Sub-screen visibility
+    var showAiToolsScreen by remember { mutableStateOf(false) }
+    var showIdeToolsScreen by remember { mutableStateOf(false) }
+    
+    // Config Dialog States
+    var showThemeDialog by remember { mutableStateOf(false) }
+    var showGpuDialog by remember { mutableStateOf(false) }
+    var selectedTheme by remember { mutableStateOf("dark") }
+    var selectedGpu by remember { mutableStateOf("auto") }
+
+    // Project state
+    var projectPaths by remember { mutableStateOf(StateManager.getProjectPaths(context).toList()) }
+    var showAgentDialog by remember { mutableStateOf(false) }
+    var selectedProjectPath by remember { mutableStateOf("") }
+
+    // Primary Debian Distro
+    val debianDistro = remember { DistroRepository.supportedDistros.find { it.id == "debian" }!! }
+    val isInstalled = remember(refreshKey.value, scriptRefreshTrigger) {
+        StateManager.isDistroInstalled(context, debianDistro.id)
+    }
+    
+    // React to refresh
     LaunchedEffect(scriptRefreshTrigger) {
         if (scriptRefreshTrigger > 0) {
             refreshKey.value++
+            projectPaths = StateManager.getProjectPaths(context).toList()
         }
     }
-    
-    Column(
+
+    // Gather installed tools
+    val installedTools by remember(refreshKey.value, scriptRefreshTrigger) {
+        derivedStateOf {
+            val tools = mutableListOf<InstalledTool>()
+            val installedDistros = StateManager.getInstalledDistros(context)
+            for (distroId in installedDistros) {
+                aiTools.filter { StateManager.isComponentInstalled(context, distroId, it.component.id) }.forEach {
+                    tools.add(InstalledTool(it.id, it.name, it.command, ToolType.AI, it.accentColor, distroId))
+                }
+                ideTools.filter { StateManager.isComponentInstalled(context, distroId, it.component.id) }.forEach {
+                    tools.add(InstalledTool(it.id, it.name, it.command, ToolType.IDE, it.accentColor, distroId))
+                }
+            }
+            tools
+        }
+    }
+
+    // SAF Directory Picker
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri: Uri? ->
+        if (uri != null) {
+            val path = convertUriToLinuxPath(uri)
+            if (path != null) {
+                if (!projectPaths.contains(path)) {
+                    StateManager.addProjectPath(context, path)
+                    projectPaths = StateManager.getProjectPaths(context).toList()
+                }
+            }
+        }
+    }
+
+    // ── Overlays (AI/IDE Screens) ───────────────────────────────────
+    if (showAiToolsScreen) {
+        AiToolsScreen(
+            distro = debianDistro,
+            onBack = { showAiToolsScreen = false },
+            onInstallComponent = onInstallComponent,
+            hazeState = hazeState
+        )
+        return
+    }
+
+    if (showIdeToolsScreen) {
+        IdeToolsScreen(
+            distro = debianDistro,
+            onBack = { showIdeToolsScreen = false },
+            onInstallComponent = onInstallComponent,
+            hazeState = hazeState
+        )
+        return
+    }
+
+    // ── Main Layout ────────────────────────────────────────────────
+    LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState()),
-        horizontalAlignment = Alignment.CenterHorizontally
+            .padding(horizontal = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(24.dp),
+        contentPadding = PaddingValues(top = 24.dp, bottom = 48.dp)
     ) {
-        
-        Spacer(modifier = Modifier.height(24.dp))
-        
-        // Trigger initial refresh on mount
-        LaunchedEffect(Unit) {
-            refreshKey.value++
-        }
-        
-        // Installed Distros Detection
-        val installedDistros = remember(refreshKey.value) {
-            val installedIds = StateManager.getInstalledDistros(context)
-            DistroRepository.supportedDistros.filter { installedIds.contains(it.id) }
-        }
-        
-        Spacer(modifier = Modifier.height(24.dp))
-        
-
-        
-        // Installed Distros Section
-        Text(
-            text = "Installed Distros",
-            fontSize = 20.sp,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.secondary,
-            modifier = Modifier.padding(horizontal = 16.dp)
-        )
-        
-        Spacer(modifier = Modifier.height(16.dp))
-        
-        // Show empty state or distro list
-        if (installedDistros.isEmpty()) {
-            // Empty state
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(32.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
-            ) {
-                Text(
-                    text = "No distros installed yet",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
-                    textAlign = TextAlign.Center
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "Install a distribution from the Distros tab",
-                    fontSize = 14.sp,
-                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f),
-                    textAlign = TextAlign.Center
-                )
-            }
-        } else {
-            // Distro list
-            installedDistros.forEach { distro ->
-                com.ivarna.nativecode.ui.components.DistroCard(
-                    distro = distro,
-                    isInstalled = true,
-                    isGuiRunning = StateManager.isGuiRunning(context, distro.id),
-                    onInstall = { onNavigateToInstall(distro) },
-                    onUninstall = { /* Handled in Settings */ }, 
-                    onNavigateToSettings = { onNavigateToSettings(distro) },
-                    onNavigateToStart = { distroToLaunch.value = distro },
-                    onOpenDisplay = {
-                        val launchIntent = context.packageManager.getLaunchIntentForPackage("com.termux.x11")
-                        if (launchIntent != null) {
-                            context.startActivity(launchIntent)
-                        } else {
-                            android.widget.Toast.makeText(context, "Termux:X11 not installed", android.widget.Toast.LENGTH_SHORT).show()
+        // ── Section 1: Debian Hero Card ──────────────────────────────
+        item {
+            DebianHeroCard(
+                distro = debianDistro,
+                isInstalled = isInstalled,
+                isGuiRunning = StateManager.isGuiRunning(context, debianDistro.id),
+                guiRunningType = StateManager.getGuiRunningType(context, debianDistro.id),
+                kdeInstalled = StateManager.isComponentInstalled(context, debianDistro.id, "kde_plasma"),
+                onInstall = { onNavigateToInstall(debianDistro) },
+                onLaunchCli = {
+                    if (permissionState.status.isGranted) {
+                        onStartService(TermuxIntentFactory.buildLaunchCliIntent(debianDistro.id))
+                    } else permissionState.launchPermissionRequest()
+                },
+                onLaunchXfce = {
+                    if (permissionState.status.isGranted) {
+                        onStartService(TermuxIntentFactory.buildLaunchGuiIntent(debianDistro.id))
+                        StateManager.setGuiRunning(context, debianDistro.id, true)
+                        StateManager.setGuiRunningType(context, debianDistro.id, "xfce4")
+                        val x11Intent = context.packageManager.getLaunchIntentForPackage("com.termux.x11")
+                        if (x11Intent != null) {
+                            context.startActivity(x11Intent)
+                            com.ivarna.nativecode.core.utils.TermuxX11Preferences.applyToTermux(context)
                         }
-                    },
-                    onStop = {
-                        if (permissionState.status.isGranted) {
-                            val runningType = StateManager.getGuiRunningType(context, distro.id)
-                            val intent = if (runningType == "kde") {
-                                TermuxIntentFactory.buildStopKdeGuiIntent(distro.id)
-                            } else {
-                                TermuxIntentFactory.buildStopGuiIntent(distro.id)
-                            }
-                            try {
-                                onStartService(intent)
-                                StateManager.setGuiRunning(context, distro.id, false)
-                                StateManager.setGuiRunningType(context, distro.id, "")
-                                val label = if (runningType == "kde") "KDE Plasma" else "XFCE4"
-                                android.widget.Toast.makeText(context, "Stopping $label...", android.widget.Toast.LENGTH_SHORT).show()
-                            } catch (e: Exception) {
-                                android.widget.Toast.makeText(context, "Stop failed: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
-                            }
-                        } else {
-                            permissionState.launchPermissionRequest()
+                    } else permissionState.launchPermissionRequest()
+                },
+                onLaunchKde = {
+                    if (permissionState.status.isGranted) {
+                        onStartService(TermuxIntentFactory.buildLaunchKdeGuiIntent(context, debianDistro.id))
+                        StateManager.setGuiRunning(context, debianDistro.id, true)
+                        StateManager.setGuiRunningType(context, debianDistro.id, "kde")
+                        val x11Intent = context.packageManager.getLaunchIntentForPackage("com.termux.x11")
+                        if (x11Intent != null) {
+                            context.startActivity(x11Intent)
+                            com.ivarna.nativecode.core.utils.TermuxX11Preferences.applyToTermux(context)
                         }
-                    }
-                )
-            }
+                    } else permissionState.launchPermissionRequest()
+                },
+                onStop = {
+                    val runningType = StateManager.getGuiRunningType(context, debianDistro.id)
+                    val intent = if (runningType == "kde") TermuxIntentFactory.buildStopKdeGuiIntent(debianDistro.id)
+                                 else TermuxIntentFactory.buildStopGuiIntent(debianDistro.id)
+                    onStartService(intent)
+                    StateManager.setGuiRunning(context, debianDistro.id, false)
+                    StateManager.setGuiRunningType(context, debianDistro.id, "")
+                },
+                onOpenX11 = {
+                    val x11Intent = context.packageManager.getLaunchIntentForPackage("com.termux.x11")
+                    if (x11Intent != null) context.startActivity(x11Intent)
+                },
+                onSettings = { onNavigateToSettings(debianDistro) }
+            )
         }
-    }
 
-    
-    Spacer(modifier = Modifier.height(100.dp))
-    
-    // Launch Popup
-    if (distroToLaunch.value != null) {
-        val distro = distroToLaunch.value!!
-        AlertDialog(
-            onDismissRequest = { distroToLaunch.value = null },
-            title = { 
-                Text(
-                    "Start ${distro.name}", 
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
-                ) 
-            },
-            text = { Text("Choose how you want to launch the distribution.", color = MaterialTheme.colorScheme.onSurfaceVariant) },
-            containerColor = MaterialTheme.colorScheme.surface,
-            confirmButton = {},
-            dismissButton = {
-                TextButton(onClick = { distroToLaunch.value = null }) {
-                    Text("Cancel", color = MaterialTheme.colorScheme.onSurface) 
+        if (isInstalled) {
+            // ── Section 2: AI & IDE Tools Banners ────────────────────────
+            item {
+                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    ToolBanner(
+                        modifier = Modifier.weight(1f),
+                        title = "AI Agents",
+                        description = "Codex, Claude...",
+                        icon = Icons.Default.SmartToy,
+                        color = Color(0xFF10A37F),
+                        onClick = { showAiToolsScreen = true }
+                    )
+                    ToolBanner(
+                        modifier = Modifier.weight(1f),
+                        title = "Code Editors",
+                        description = "VS Code, Cursor...",
+                        icon = Icons.Default.Laptop,
+                        color = Color(0xFF007ACC),
+                        onClick = { showIdeToolsScreen = true }
+                    )
                 }
-            },
-            icon = {
-                 Icon(
-                     imageVector = androidx.compose.material.icons.Icons.Default.PlayArrow,
-                     contentDescription = null,
-                     tint = FluxAccentCyan
-                 )
-            },
-            // Custom Layout for Buttons
-            // Using a Row with two big buttons? LIMITATION: AlertDialog has specific slots.
-            // We can put the buttons in the "text" part or just use confirm/dismiss as actions?
-            // Better to use the text part to house the buttons for vertical stacking or a Row.
-        )
-        // AlertDialog is a bit restrictive for 2 "positive" actions.
-        // Let's use a custom Dialog or just use the Buttons in the text area?
-        // Actually, we can just put a Column in the 'text' slot.
-    }
-    
-    // Custom Launch Dialog
-    if (distroToLaunch.value != null) {
-        val distro = distroToLaunch.value!!
-        androidx.compose.ui.window.Dialog(
-            onDismissRequest = { distroToLaunch.value = null },
-            properties = androidx.compose.ui.window.DialogProperties(
-                usePlatformDefaultWidth = false // Allow full width customization
-            ) 
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth(0.9f)
-                    .clip(RoundedCornerShape(28.dp))
-                    .background(
-                        Brush.linearGradient(
-                            colors = listOf(
-                                Color(0xFF1E1E1E).copy(alpha = 0.95f),
-                                Color(0xFF121212).copy(alpha = 0.98f)
-                            )
-                        )
+            }
+
+            // ── Section 3: Configuration ────────────────────────────────
+            item {
+                Text(
+                    "Configuration",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.secondary
+                )
+            }
+            
+            item {
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    ConfigCard(
+                        modifier = Modifier.weight(1f),
+                        title = "Theme",
+                        value = "XFCE / KDE",
+                        icon = Icons.Default.Palette,
+                        onClick = { showThemeDialog = true }
                     )
-                    .border(
-                        BorderStroke(1.dp, Brush.verticalGradient(
-                            listOf(
-                                Color.White.copy(alpha = 0.15f),
-                                Color.Transparent
-                            )
-                        )),
-                        RoundedCornerShape(28.dp)
+                    ConfigCard(
+                        modifier = Modifier.weight(1f),
+                        title = "GPU Accel",
+                        value = StateManager.getHardwareAccelType(context, debianDistro.id).uppercase(),
+                        icon = Icons.Default.Speed,
+                        onClick = { showGpuDialog = true }
                     )
+                }
+            }
+        }
+
+        // ── Section 4: Projects ──────────────────────────────────────
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                // Glow effect behind the top
+                Text(
+                    "Projects",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.secondary
+                )
+                TextButton(onClick = { launcher.launch(null) }) {
+                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Add Folder", fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+
+        if (projectPaths.isEmpty()) {
+            item { EmptyProjectsState() }
+        } else {
+            itemsIndexed(projectPaths) { index, path ->
+                var visible by remember { mutableStateOf(false) }
+                LaunchedEffect(Unit) {
+                    delay(index * 50L)
+                    visible = true
+                }
+                AnimatedVisibility(visible = visible, enter = fadeIn() + scaleIn(initialScale = 0.95f)) {
+                    ProjectGlassCard(
+                        path = path,
+                        onClick = { selectedProjectPath = path; showAgentDialog = true },
+                        onDelete = {
+                            StateManager.removeProjectPath(context, path)
+                            projectPaths = StateManager.getProjectPaths(context).toList()
+                        }
+                    )
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+        }
+        
+        item { Spacer(modifier = Modifier.height(20.dp)) }
+    }
+
+    // ── Dialogs ──────────────────────────────────────────────────
+    if (showAgentDialog) {
+        AgentSelectionDialog(
+            projectPath = selectedProjectPath,
+            installedTools = installedTools,
+            onDismiss = { showAgentDialog = false },
+            onLaunchTool = { tool ->
+                showAgentDialog = false
+                onLaunchTool(tool, selectedProjectPath)
+            },
+            onCopyPath = {
+                val clip = ClipData.newPlainText("Project Path", selectedProjectPath)
+                (context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).setPrimaryClip(clip)
+                showAgentDialog = false
+            },
+            onRemove = {
+                StateManager.removeProjectPath(context, selectedProjectPath)
+                projectPaths = StateManager.getProjectPaths(context).toList()
+                showAgentDialog = false
+            }
+        )
+    }
+}
+
+@Composable
+fun DebianHeroCard(
+    distro: Distro,
+    isInstalled: Boolean,
+    isGuiRunning: Boolean,
+    guiRunningType: String,
+    kdeInstalled: Boolean,
+    onInstall: () -> Unit,
+    onLaunchCli: () -> Unit,
+    onLaunchXfce: () -> Unit,
+    onLaunchKde: () -> Unit,
+    onStop: () -> Unit,
+    onOpenX11: () -> Unit,
+    onSettings: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(28.dp))
+            .background(
+                Brush.linearGradient(
+                    colors = listOf(
+                        Color(0xFFE91E63).copy(alpha = 0.15f),
+                        Color(0xFF121212).copy(alpha = 0.6f)
+                    )
+                )
+            )
+            .border(
+                1.dp,
+                Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.25f), Color.Transparent)),
+                RoundedCornerShape(28.dp)
+            )
+            .padding(24.dp)
+    ) {
+        Column {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .height(100.dp)
-                        .background(
-                            Brush.verticalGradient(
-                                listOf(
-                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
-                                    Color.Transparent
-                                )
-                            )
-                        )
-                )
-
-                Column(
-                    modifier = Modifier.padding(24.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                        .size(64.dp)
+                        .clip(RoundedCornerShape(18.dp))
+                        .background(Color.Black.copy(alpha = 0.3f)),
+                    contentAlignment = Alignment.Center
                 ) {
-                    // Header Icon
-                    Box(
-                        modifier = Modifier
-                            .size(64.dp)
-                            .clip(RoundedCornerShape(18.dp))
-                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        if (distro.iconRes != null) {
-                            androidx.compose.foundation.Image(
-                                painter = androidx.compose.ui.res.painterResource(id = distro.iconRes),
-                                contentDescription = null,
-                                modifier = Modifier.size(48.dp)
-                            )
-                        } else {
-                            Icon(
-                                imageVector = androidx.compose.material.icons.Icons.Default.PlayArrow,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(32.dp)
-                            )
-                        }
+                    Image(painter = painterResource(id = R.drawable.distro_debian), contentDescription = null, modifier = Modifier.size(42.dp))
+                }
+                Spacer(modifier = Modifier.width(16.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Debian GNU/Linux", fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = Color.White)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(if (isInstalled) Color(0xFF4CAF50) else Color(0xFFFF9800)))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(if (isInstalled) "Installed & Ready" else "Not Installed", fontSize = 14.sp, color = Color.White.copy(alpha = 0.7f))
                     }
+                }
+                IconButton(onClick = onSettings, modifier = Modifier.clip(CircleShape).background(Color.White.copy(alpha = 0.05f))) {
+                    Icon(Icons.Default.Settings, contentDescription = null, tint = Color.White.copy(alpha = 0.7f))
+                }
+            }
 
-                    Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(28.dp))
 
-                    Text(
-                        text = "Start ${distro.name}",
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    
-                    Text(
-                        text = "Choose launch mode",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
-                    )
-                    
-                    Spacer(modifier = Modifier.height(32.dp))
-                    
-                    // CLI Button
-                    if (distro.id != "termux") {
+            if (!isInstalled) {
+                Button(
+                    onClick = onInstall,
+                    modifier = Modifier.fillMaxWidth().height(56.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE91E63)),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Text("Install Debian System", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                }
+            } else {
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    LaunchButton(modifier = Modifier.weight(1f), label = "Terminal", icon = Icons.Default.Code, color = Color(0xFF424242), onClick = onLaunchCli)
+                    LaunchButton(modifier = Modifier.weight(1f), label = "XFCE4", icon = Icons.Default.DesktopWindows, color = Color(0xFF4A148C), onClick = onLaunchXfce)
+                    LaunchButton(modifier = Modifier.weight(1f), label = "KDE", icon = Icons.Default.Waves, color = Color(0xFF1A237E), onClick = onLaunchKde, enabled = kdeInstalled)
+                }
+                
+                if (isGuiRunning) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         Button(
-                            onClick = {
-                                if (permissionState.status.isGranted) {
-                                    val intent = TermuxIntentFactory.buildLaunchCliIntent(distro.id)
-                                    try {
-                                        onStartService(intent)
-                                        distroToLaunch.value = null
-                                    } catch (e: Exception) {
-                                        android.widget.Toast.makeText(context, "Launch failed: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
-                                    }
-                                } else {
-                                    permissionState.launchPermissionRequest()
-                                }
-                            },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                                contentColor = MaterialTheme.colorScheme.onTertiaryContainer
-                            ),
-                            shape = RoundedCornerShape(16.dp),
-                            modifier = Modifier.fillMaxWidth().height(56.dp)
+                            onClick = onOpenX11,
+                            modifier = Modifier.weight(1.5f).height(48.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50).copy(alpha = 0.2f), contentColor = Color(0xFF81C784)),
+                            shape = RoundedCornerShape(14.dp),
+                            border = BorderStroke(1.dp, Color(0xFF4CAF50).copy(alpha = 0.4f))
                         ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text("Launch Terminal (CLI)", fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
-                            }
+                            Icon(Icons.Default.Visibility, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Open ${guiRunningType.uppercase()}", fontWeight = FontWeight.Bold)
                         }
-                        
-                        Spacer(modifier = Modifier.height(16.dp))
-                        
-                        // Root Terminal Button (Only for Chroot Distros)
-                        if (distro.id.contains("chroot")) {
-                            Button(
-                                onClick = {
-                                    if (permissionState.status.isGranted) {
-                                        val intent = TermuxIntentFactory.buildLaunchRootCliIntent(distro.id)
-                                        try {
-                                            onStartService(intent)
-                                            distroToLaunch.value = null
-                                        } catch (e: Exception) {
-                                            android.widget.Toast.makeText(context, "Launch failed: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
-                                        }
-                                    } else {
-                                        permissionState.launchPermissionRequest()
-                                    }
-                                },
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.7f),
-                                    contentColor = MaterialTheme.colorScheme.onErrorContainer
-                                ),
-                                shape = RoundedCornerShape(16.dp),
-                                modifier = Modifier.fillMaxWidth().height(56.dp)
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text("🔓 Root Terminal", fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
-                                }
-                            }
-                            
-                            Spacer(modifier = Modifier.height(16.dp))
-                        }
-                    }
-                    
-                    // GUI Buttons — separate for XFCE4 and KDE
-                    val kdeInstalled = StateManager.isComponentInstalled(context, distro.id, "kde_plasma")
-
-                    // XFCE4
-                    Button(
-                        onClick = {
-                            if (permissionState.status.isGranted) {
-                                val intent = TermuxIntentFactory.buildLaunchGuiIntent(distro.id)
-                                try {
-                                    onStartService(intent)
-                                    StateManager.setGuiRunning(context, distro.id, true)
-                                    StateManager.setGuiRunningType(context, distro.id, "xfce4")
-                                    val x11Intent = context.packageManager.getLaunchIntentForPackage("com.termux.x11")
-                                    if (x11Intent != null) {
-                                        context.startActivity(x11Intent)
-                                        com.ivarna.nativecode.core.utils.TermuxX11Preferences.applyToTermux(context)
-                                    }
-                                    distroToLaunch.value = null
-                                } catch (e: Exception) {
-                                    android.widget.Toast.makeText(context, "Launch failed: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
-                                }
-                            } else {
-                                permissionState.launchPermissionRequest()
-                            }
-                        },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF4A148C).copy(alpha = 0.85f),
-                            contentColor = Color.White
-                        ),
-                        shape = RoundedCornerShape(16.dp),
-                        modifier = Modifier.fillMaxWidth().height(56.dp)
-                    ) {
-                        Text("🖥 Launch XFCE4", fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
-                    }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    // KDE Plasma
-                    Button(
-                        onClick = {
-                            if (kdeInstalled && permissionState.status.isGranted) {
-                                val intent = TermuxIntentFactory.buildLaunchKdeGuiIntent(context, distro.id)
-                                try {
-                                    onStartService(intent)
-                                    StateManager.setGuiRunning(context, distro.id, true)
-                                    StateManager.setGuiRunningType(context, distro.id, "kde")
-                                    val x11Intent = context.packageManager.getLaunchIntentForPackage("com.termux.x11")
-                                    if (x11Intent != null) {
-                                        context.startActivity(x11Intent)
-                                        com.ivarna.nativecode.core.utils.TermuxX11Preferences.applyToTermux(context)
-                                    }
-                                    distroToLaunch.value = null
-                                } catch (e: Exception) {
-                                    android.widget.Toast.makeText(context, "Launch failed: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
-                                }
-                            } else if (!kdeInstalled) {
-                                android.widget.Toast.makeText(context, "Install KDE Plasma Desktop first from Settings.", android.widget.Toast.LENGTH_LONG).show()
-                            } else {
-                                permissionState.launchPermissionRequest()
-                            }
-                        },
-                        enabled = true, // Always tappable — shows toast if not installed
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = if (kdeInstalled) Color(0xFF1A237E).copy(alpha = 0.85f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                            contentColor = if (kdeInstalled) Color.White else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
-                        ),
-                        shape = RoundedCornerShape(16.dp),
-                        modifier = Modifier.fillMaxWidth().height(56.dp)
-                    ) {
-                        Text(
-                            if (kdeInstalled) "🌊 Launch KDE Plasma" else "🌊 Launch KDE (Not Installed)",
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 15.sp
-                        )
-                    }
-
-
-                    val isGuiRunning = StateManager.isGuiRunning(context, distro.id)
-                    val runningType = StateManager.getGuiRunningType(context, distro.id)
-                    if (isGuiRunning) {
-                        Spacer(modifier = Modifier.height(16.dp))
                         Button(
-                            onClick = {
-                                val intent = if (runningType == "kde") {
-                                    TermuxIntentFactory.buildStopKdeGuiIntent(distro.id)
-                                } else {
-                                    TermuxIntentFactory.buildStopGuiIntent(distro.id)
-                                }
-                                onStartService(intent)
-                                StateManager.setGuiRunning(context, distro.id, false)
-                                StateManager.setGuiRunningType(context, distro.id, "")
-                                distroToLaunch.value = null
-                            },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.errorContainer,
-                                contentColor = MaterialTheme.colorScheme.onErrorContainer
-                            ),
-                            shape = RoundedCornerShape(16.dp),
-                            modifier = Modifier.fillMaxWidth().height(56.dp)
+                            onClick = onStop,
+                            modifier = Modifier.weight(1f).height(48.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF5252).copy(alpha = 0.2f), contentColor = Color(0xFFFF5252)),
+                            shape = RoundedCornerShape(14.dp),
+                            border = BorderStroke(1.dp, Color(0xFFFF5252).copy(alpha = 0.4f))
                         ) {
-                            Text(
-                                if (runningType == "kde") "⏹ Stop KDE Plasma" else "⏹ Stop XFCE4",
-                                fontWeight = FontWeight.SemiBold
-                            )
+                            Text("Stop", fontWeight = FontWeight.Bold)
                         }
-                    }
-                    
-                    Spacer(modifier = Modifier.height(24.dp))
-                    
-                    androidx.compose.material3.TextButton(
-                        onClick = { distroToLaunch.value = null },
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(
-                            "Cancel", 
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontWeight = FontWeight.Medium
-                        )
                     }
                 }
             }
         }
     }
+}
+
+@Composable
+fun LaunchButton(modifier: Modifier, label: String, icon: androidx.compose.ui.graphics.vector.ImageVector, color: Color, onClick: () -> Unit, enabled: Boolean = true) {
+    Button(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = modifier.height(64.dp),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = if (enabled) color.copy(alpha = 0.8f) else Color.White.copy(alpha = 0.05f),
+            contentColor = if (enabled) Color.White else Color.White.copy(alpha = 0.2f)
+        ),
+        shape = RoundedCornerShape(18.dp),
+        contentPadding = PaddingValues(0.dp)
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(icon, contentDescription = null, modifier = Modifier.size(20.dp))
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(label, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+        }
+    }
+}
+
+@Composable
+fun ToolBanner(modifier: Modifier, title: String, description: String, icon: androidx.compose.ui.graphics.vector.ImageVector, color: Color, onClick: () -> Unit) {
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(20.dp))
+            .background(color.copy(alpha = 0.1f))
+            .border(1.dp, color.copy(alpha = 0.2f), RoundedCornerShape(20.dp))
+            .clickable(onClick = onClick)
+            .padding(16.dp)
+    ) {
+        Column {
+            Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(28.dp))
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(title, fontWeight = FontWeight.Bold, color = Color.White, fontSize = 15.sp)
+            Text(description, fontSize = 11.sp, color = Color.White.copy(alpha = 0.5f))
+        }
+    }
+}
+
+@Composable
+fun ConfigCard(modifier: Modifier, title: String, value: String, icon: androidx.compose.ui.graphics.vector.ImageVector, onClick: () -> Unit) {
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(18.dp))
+            .background(Color.White.copy(alpha = 0.05f))
+            .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(18.dp))
+            .clickable(onClick = onClick)
+            .padding(14.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(icon, contentDescription = null, tint = FluxAccentCyan, modifier = Modifier.size(20.dp))
+            Spacer(modifier = Modifier.width(10.dp))
+            Column {
+                Text(title, fontSize = 12.sp, color = Color.White.copy(alpha = 0.5f))
+                Text(value, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.White)
+            }
+        }
+    }
+}
+
+// ── Project Components ──────────────────────────────────────────────
+
+@Composable
+fun ProjectGlassCard(path: String, onClick: () -> Unit, onDelete: () -> Unit) {
+    val context = LocalContext.current
+    val folderName = path.substringAfterLast("/").takeIf { it.isNotEmpty() } ?: "Root"
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(24.dp))
+            .background(Color.White.copy(alpha = 0.05f))
+            .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(24.dp))
+            .clickable(onClick = onClick)
+            .padding(20.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier.size(48.dp).clip(RoundedCornerShape(14.dp)).background(FluxAccentCyan.copy(alpha = 0.1f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Default.FolderOpen, contentDescription = null, tint = FluxAccentCyan, modifier = Modifier.size(24.dp))
+            }
+            Spacer(modifier = Modifier.width(16.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(folderName, fontWeight = FontWeight.Bold, color = Color.White, fontSize = 16.sp)
+                Text(path, fontSize = 11.sp, color = Color.White.copy(alpha = 0.4f), fontFamily = FontFamily.Monospace)
+            }
+            IconButton(onClick = onDelete) {
+                Icon(Icons.Default.Delete, contentDescription = null, tint = Color(0xFFFF5252).copy(alpha = 0.6f))
+            }
+        }
+    }
+}
+
+@Composable
+fun EmptyProjectsState() {
+    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth().padding(24.dp)) {
+        Icon(Icons.Default.FolderOpen, contentDescription = null, tint = Color.White.copy(alpha = 0.1f), modifier = Modifier.size(64.dp))
+        Spacer(modifier = Modifier.height(12.dp))
+        Text("No projects linked", color = Color.White.copy(alpha = 0.3f), fontSize = 14.sp)
+    }
+}
+
+@Composable
+fun AgentSelectionDialog(
+    projectPath: String,
+    installedTools: List<InstalledTool>,
+    onDismiss: () -> Unit,
+    onLaunchTool: (InstalledTool) -> Unit,
+    onCopyPath: () -> Unit,
+    onRemove: () -> Unit
+) {
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+        Box(
+            modifier = Modifier.fillMaxWidth(0.95f).clip(RoundedCornerShape(28.dp)).background(Color(0xFF1A1A1A)).border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(28.dp)).padding(24.dp)
+        ) {
+            Column {
+                Text("Project Options", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = Color.White)
+                Text(projectPath, fontSize = 12.sp, color = Color.White.copy(alpha = 0.4f), modifier = Modifier.padding(bottom = 24.dp))
+
+                if (installedTools.isNotEmpty()) {
+                    Text("OPEN WITH", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = FluxAccentCyan, modifier = Modifier.padding(bottom = 8.dp))
+                    installedTools.forEach { tool ->
+                        AgentActionButton(
+                            label = tool.name, 
+                            icon = if (tool.type == ToolType.AI) Icons.Default.SmartToy else Icons.Default.Laptop,
+                            color = tool.accentColor,
+                            onClick = { onLaunchTool(tool) }
+                        )
+                        Spacer(modifier = Modifier.height(10.dp))
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
+
+                AgentActionButton(label = "Copy Path", icon = Icons.Default.ContentCopy, color = Color.White.copy(alpha = 0.6f), onClick = onCopyPath)
+                Spacer(modifier = Modifier.height(10.dp))
+                AgentActionButton(label = "Remove Project", icon = Icons.Default.Delete, color = Color(0xFFFF5252), onClick = onRemove)
+                
+                Spacer(modifier = Modifier.height(24.dp))
+                TextButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) {
+                    Text("Close", color = Color.White.copy(alpha = 0.6f))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun AgentActionButton(label: String, icon: androidx.compose.ui.graphics.vector.ImageVector, color: Color, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(color.copy(alpha = 0.1f)).border(1.dp, color.copy(alpha = 0.2f), RoundedCornerShape(14.dp)).clickable(onClick = onClick).padding(14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(20.dp))
+        Spacer(modifier = Modifier.width(12.dp))
+        Text(label, fontWeight = FontWeight.Bold, color = Color.White, fontSize = 15.sp)
+    }
+}
+
+fun convertUriToLinuxPath(uri: Uri): String? {
+    val decodedPath = Uri.decode(uri.toString())
+    val marker = "tree/primary:"
+    return if (decodedPath.contains(marker)) "/sdcard/" + decodedPath.substringAfter(marker) else null
 }
 
 

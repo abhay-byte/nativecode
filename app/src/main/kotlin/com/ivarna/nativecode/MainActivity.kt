@@ -262,6 +262,30 @@ class MainActivity : ComponentActivity() {
                     selectedDistro = distro
                     currentScreen = Screen.DISTRO_SETTINGS
                 }
+
+                val onInstallComponentStub: (com.ivarna.nativecode.core.data.DistroComponent, Map<String, String>) -> Unit = { component, extraEnv ->
+                    val distroId = selectedDistro?.id ?: "debian"
+                    if (permissionState.status.isGranted) {
+                        lifecycleScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                            val queueManager = com.ivarna.nativecode.core.utils.InstallationQueueManager
+                            queueManager.clear()
+                            val task = com.ivarna.nativecode.core.utils.InstallTask(
+                                id = component.id,
+                                name = component.name,
+                                type = com.ivarna.nativecode.core.utils.TaskType.COMPONENT,
+                                scriptName = component.scriptName,
+                                distroId = distroId,
+                                extraEnv = extraEnv
+                            )
+                            queueManager.enqueue(listOf(task))
+                            withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                processNextInstallTask()
+                            }
+                        }
+                    } else {
+                        permissionState.launchPermissionRequest()
+                    }
+                }
                 
                 // Show appropriate screen based on state
                 when (currentScreen) {
@@ -291,6 +315,7 @@ class MainActivity : ComponentActivity() {
                             onNavigateToInstall = onNavigateToInstall,
                             onNavigateToSettings = onNavigateToDistroSettings,
                             onNavigateToSettingsScreen = { currentScreen = Screen.SETTINGS },
+                            onInstallComponent = onInstallComponentStub,
                             onLaunchTool = { tool, path ->
                                 val intent = when (tool.type) {
                                     com.ivarna.nativecode.ui.screens.ToolType.AI -> {
