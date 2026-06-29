@@ -25,3 +25,7 @@
 
 # Keep app classes
 -keep class com.ivarna.nativecode.** { *; }
+
+# Ignore missing compile-time annotations
+-dontwarn com.google.errorprone.annotations.**
+-dontwarn com.google.crypto.tink.**
