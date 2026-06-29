@@ -2,21 +2,74 @@ package com.ivarna.nativecode.core.utils
 
 import android.content.Context
 import android.content.pm.PackageManager
-import kotlinx.coroutines.flow.asStateFlow
+import com.ivarna.nativecode.core.model.BackgroundTask
+import com.ivarna.nativecode.core.model.BackgroundTaskStatus
+import com.ivarna.nativecode.core.model.Project
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 
 /**
  * Manages application state and package detection
  */
 object StateManager {
     
+    private val json = Json { ignoreUnknownKeys = true }
+    
     // UI Refresh Trigger
-    private val _refreshTrigger = kotlinx.coroutines.flow.MutableStateFlow(0)
-    val refreshTrigger: kotlinx.coroutines.flow.StateFlow<Int> = _refreshTrigger.asStateFlow()
+    private val _refreshTrigger = MutableStateFlow(0)
+    val refreshTrigger: StateFlow<Int> = _refreshTrigger.asStateFlow()
+    
+    // Project operation results
+    private val _gitDiffResult = MutableStateFlow<String?>(null)
+    val gitDiffResult: StateFlow<String?> = _gitDiffResult.asStateFlow()
+    
+    private val _apkListResult = MutableStateFlow<List<String>?>(null)
+    val apkListResult: StateFlow<List<String>?> = _apkListResult.asStateFlow()
+    
+    private val _directoryListResult = MutableStateFlow<List<String>?>(null)
+    val directoryListResult: StateFlow<List<String>?> = _directoryListResult.asStateFlow()
+    
+    private val _backgroundTasks = MutableStateFlow<List<BackgroundTask>>(emptyList())
+    val backgroundTasks: StateFlow<List<BackgroundTask>> = _backgroundTasks.asStateFlow()
+    
+    private val _pendingSharedImageUri = MutableStateFlow<String?>(null)
+    val pendingSharedImageUri: StateFlow<String?> = _pendingSharedImageUri.asStateFlow()
     
     fun triggerRefresh() {
         _refreshTrigger.value += 1
+    }
+    
+    fun setPendingSharedImageUri(uri: String?) {
+        _pendingSharedImageUri.value = uri
+    }
+    
+    fun setGitDiffResult(result: String?) {
+        _gitDiffResult.value = result
+    }
+    
+    fun setApkListResult(result: List<String>?) {
+        _apkListResult.value = result
+    }
+    
+    fun setDirectoryListResult(result: List<String>?) {
+        _directoryListResult.value = result
+    }
+    
+    fun addBackgroundTask(task: BackgroundTask) {
+        _backgroundTasks.value += task
+    }
+    
+    fun updateBackgroundTask(taskId: String, status: BackgroundTaskStatus, result: String? = null) {
+        _backgroundTasks.value = _backgroundTasks.value.map { 
+            if (it.id == taskId) it.copy(status = status, result = result) else it 
+        }
+    }
+    
+    fun removeBackgroundTask(taskId: String) {
+        _backgroundTasks.value = _backgroundTasks.value.filter { it.id != taskId }
     }
     
     /**
@@ -152,9 +205,6 @@ object StateManager {
         editor.remove("distro_${distroId}_gui_running")
         
         // Remove all component statuses for this distro
-        // Since we don't track a list of installed components separately, 
-        // we iterate through all keys to find those matching the pattern.
-        // Pattern: distro_${distroId}_component_${componentId}
         val allKeys = prefs.all.keys
         val componentPrefix = "distro_${distroId}_component_"
         
@@ -201,11 +251,6 @@ object StateManager {
         prefs.edit().putBoolean("connection_fixed", fixed).apply()
         android.util.Log.d("StateManager", "Connection fix status set to: $fixed")
     }
-
-    /**
-     * Check if app has PACKAGE_USAGE_STATS permission
-     */
-
 
     /**
      * Get total package size including app, data, and cache
@@ -362,32 +407,126 @@ object StateManager {
         prefs.edit().putString("distro_${distroId}_gui_type", type).apply()
         android.util.Log.d("StateManager", "Distro $distroId GUI type set to: $type")
     }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // PROJECT MANAGEMENT (JSON-based with metadata)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    private const val PROJECTS_PREFS = "nativecode_projects"
+    private const val PROJECTS_JSON_KEY = "projects_json"
+
     /**
-     * Get saved nativecode project paths
+     * Get all saved projects with metadata
+     */
+    fun getProjects(context: Context): List<Project> {
+        val prefs = context.getSharedPreferences(PROJECTS_PREFS, Context.MODE_PRIVATE)
+        val jsonStr = prefs.getString(PROJECTS_JSON_KEY, null)
+        return if (jsonStr != null) {
+            try {
+                json.decodeFromString<List<Project>>(jsonStr)
+            } catch (e: Exception) {
+                android.util.Log.e("StateManager", "Failed to parse projects JSON, falling back to paths", e)
+                // Fallback to old path-based storage
+                migrateProjectsFromPaths(context)
+            }
+        } else {
+            // Try old path-based storage
+            migrateProjectsFromPaths(context)
+        }
+    }
+
+    /**
+     * Migrate from old path-based storage to new JSON format
+     */
+    private fun migrateProjectsFromPaths(context: Context): List<Project> {
+        val prefs = context.getSharedPreferences(PROJECTS_PREFS, Context.MODE_PRIVATE)
+        val oldPaths = prefs.getStringSet("project_paths", emptySet()) ?: emptySet()
+        val projects = oldPaths.map { path ->
+            Project(
+                path = path,
+                name = path.substringAfterLast("/").takeIf { it.isNotEmpty() } ?: "Root",
+                category = "General"
+            )
+        }
+        if (projects.isNotEmpty()) {
+            saveProjects(context, projects)
+        }
+        return projects
+    }
+
+    /**
+     * Save all projects
+     */
+    fun saveProjects(context: Context, projects: List<Project>) {
+        val prefs = context.getSharedPreferences(PROJECTS_PREFS, Context.MODE_PRIVATE)
+        prefs.edit().putString(PROJECTS_JSON_KEY, json.encodeToString(projects)).apply()
+    }
+
+    /**
+     * Add or update a project
+     */
+    fun addProject(context: Context, project: Project) {
+        val projects = getProjects(context).toMutableList()
+        projects.removeAll { it.path == project.path }
+        projects.add(project)
+        saveProjects(context, projects)
+    }
+
+    /**
+     * Remove a project by path
+     */
+    fun removeProject(context: Context, path: String) {
+        val projects = getProjects(context).filter { it.path != path }
+        saveProjects(context, projects)
+    }
+
+    /**
+     * Update project category
+     */
+    fun setProjectCategory(context: Context, path: String, category: String) {
+        val projects = getProjects(context).map { 
+            if (it.path == path) it.copy(category = category) else it 
+        }
+        saveProjects(context, projects)
+    }
+
+    /**
+     * Update project git remote URL
+     */
+    fun setProjectGitRemote(context: Context, path: String, gitRemoteUrl: String?) {
+        val projects = getProjects(context).map { 
+            if (it.path == path) it.copy(gitRemoteUrl = gitRemoteUrl) else it 
+        }
+        saveProjects(context, projects)
+    }
+
+    /**
+     * Legacy: Get saved project paths (for backward compatibility)
      */
     fun getProjectPaths(context: Context): Set<String> {
-        val prefs = context.getSharedPreferences("nativecode_projects", Context.MODE_PRIVATE)
-        return prefs.getStringSet("project_paths", emptySet()) ?: emptySet()
+        return getProjects(context).map { it.path }.toSet()
     }
 
     /**
-     * Add a project path
+     * Legacy: Add a project path (for backward compatibility)
      */
     fun addProjectPath(context: Context, path: String) {
-        val prefs = context.getSharedPreferences("nativecode_projects", Context.MODE_PRIVATE)
-        val currentPaths = prefs.getStringSet("project_paths", emptySet())?.toMutableSet() ?: mutableSetOf()
-        currentPaths.add(path)
-        prefs.edit().putStringSet("project_paths", currentPaths).apply()
+        val projects = getProjects(context).toMutableList()
+        if (projects.none { it.path == path }) {
+            projects.add(Project(
+                path = path,
+                name = path.substringAfterLast("/").takeIf { it.isNotEmpty() } ?: "Root",
+                category = "General"
+            ))
+            saveProjects(context, projects)
+        }
     }
 
     /**
-     * Remove a project path
+     * Legacy: Remove a project path (for backward compatibility)
      */
     fun removeProjectPath(context: Context, path: String) {
-        val prefs = context.getSharedPreferences("nativecode_projects", Context.MODE_PRIVATE)
-        val currentPaths = prefs.getStringSet("project_paths", emptySet())?.toMutableSet() ?: mutableSetOf()
-        currentPaths.remove(path)
-        prefs.edit().putStringSet("project_paths", currentPaths).apply()
+        removeProject(context, path)
     }
 
     /**

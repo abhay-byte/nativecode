@@ -6,23 +6,16 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.luminance
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.border
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
-import androidx.compose.animation.AnimatedContent
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ivarna.nativecode.R
@@ -31,7 +24,6 @@ import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.haze
 import dev.chrisbanes.haze.hazeChild
 import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
-import dev.chrisbanes.haze.materials.HazeMaterials
 import dev.chrisbanes.haze.HazeStyle
 
 @OptIn(ExperimentalHazeMaterialsApi::class)
@@ -44,7 +36,7 @@ fun OnboardingScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(androidx.compose.material3.MaterialTheme.colorScheme.background)
+            .background(MaterialTheme.colorScheme.background)
     ) {
         // Background layer for blur
         Box(
@@ -75,7 +67,7 @@ fun OnboardingScreen(
             // Title
             Text(
                 text = "NativeCode",
-                color = androidx.compose.material3.MaterialTheme.colorScheme.onBackground,
+                color = MaterialTheme.colorScheme.onBackground,
                 fontSize = 32.sp,
                 fontWeight = FontWeight.Bold
             )
@@ -85,7 +77,7 @@ fun OnboardingScreen(
             // Subtitle
             Text(
                 text = "Run Full Linux Distributions on Android",
-                color = androidx.compose.material3.MaterialTheme.colorScheme.onBackground.copy(alpha=0.7f),
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha=0.7f),
                 fontSize = 16.sp,
                 textAlign = TextAlign.Center
             )
@@ -124,7 +116,7 @@ fun OnboardingScreen(
                 // Get Started Button
                 Button(
                     onClick = onGetStarted,
-                    colors = ButtonDefaults.buttonColors(containerColor = androidx.compose.material3.MaterialTheme.colorScheme.primary),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(56.dp),
@@ -132,7 +124,7 @@ fun OnboardingScreen(
                 ) {
                     Text(
                         "Get Started",
-                        color = androidx.compose.material3.MaterialTheme.colorScheme.onPrimary,
+                        color = MaterialTheme.colorScheme.onPrimary,
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -157,7 +149,7 @@ fun FeatureCard(
             .hazeChild(
                 state = hazeState,
                 style = HazeStyle(
-                    backgroundColor = androidx.compose.material3.MaterialTheme.colorScheme.surface.copy(alpha = 0.6f),
+                    backgroundColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f),
                     tint = null
                 )
             )
@@ -168,20 +160,20 @@ fun FeatureCard(
         Text(
             text = icon,
             fontSize = 32.sp,
-            color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface,
+            color = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.padding(end = 16.dp)
         )
         
         Column {
             Text(
                 text = title,
-                color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface,
+                color = MaterialTheme.colorScheme.onSurface,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold
             )
             Text(
                 text = description,
-                color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                 fontSize = 14.sp
             )
         }

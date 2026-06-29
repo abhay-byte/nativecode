@@ -5,94 +5,117 @@ import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
-// Fallback Dark Scheme (Dark Grey Primary, Cream Secondary)
-private val DarkColorScheme = darkColorScheme(
-    primary = FluxDarkGrey,
-    onPrimary = TextWhite,
-    secondary = BrandCream, // Light Secondary for Dark Mode (High Contrast)
-    onSecondary = FluxDarkGrey,
-    tertiary = FluxAccentMagenta,
-    background = FluxDarkSurface,
-    surface = FluxDarkGrey,
+// =============================================================================
+// Obsidian Nexus Dark Color Scheme
+// =============================================================================
+val ObsidianDarkColorScheme = darkColorScheme(
+    primary = ObsidianPrimary,
+    onPrimary = ObsidianOnPrimary,
+    primaryContainer = ObsidianPrimaryContainer,
+    onPrimaryContainer = ObsidianOnPrimaryContainer,
+    inversePrimary = ObsidianInversePrimary,
+    secondary = ObsidianSecondary,
+    onSecondary = ObsidianOnSecondary,
+    secondaryContainer = ObsidianSecondaryContainer,
+    onSecondaryContainer = ObsidianOnSecondaryContainer,
+    tertiary = ObsidianTertiary,
+    onTertiary = ObsidianOnTertiary,
+    tertiaryContainer = ObsidianTertiaryContainer,
+    onTertiaryContainer = ObsidianOnTertiaryContainer,
+    error = ObsidianError,
+    onError = ObsidianOnError,
+    errorContainer = ObsidianErrorContainer,
+    onErrorContainer = ObsidianOnErrorContainer,
+    background = ObsidianBackground,
+    onBackground = ObsidianOnBackground,
+    surface = ObsidianSurface,
+    onSurface = ObsidianOnSurface,
+    surfaceVariant = ObsidianSurfaceVariant,
+    onSurfaceVariant = ObsidianOnSurfaceVariant,
+    surfaceTint = ObsidianSurfaceTint,
+    inverseSurface = ObsidianInverseSurface,
+    inverseOnSurface = ObsidianInverseOnSurface,
+    outline = ObsidianOutline,
+    outlineVariant = ObsidianOutlineVariant,
+    surfaceBright = ObsidianSurfaceBright,
+    surfaceContainer = ObsidianSurfaceContainer,
+    surfaceContainerHigh = ObsidianSurfaceContainerHigh,
+    surfaceContainerHighest = ObsidianSurfaceContainerHighest,
+    surfaceContainerLow = ObsidianSurfaceContainerLow,
+    surfaceContainerLowest = ObsidianSurfaceContainerLowest,
+    surfaceDim = ObsidianSurfaceDim,
+    scrim = Color.Black
 )
 
-// Fallback Light Scheme (Soft Cream Primary, Dark Text)
-private val LightColorScheme = lightColorScheme(
-    primary = BrandCream,
-    onPrimary = FluxDarkGrey,
-    secondary = FluxDarkGrey,
-    onSecondary = Color.White,
-    tertiary = FluxAccentMagenta,
-    background = Color(0xFFFAFAFA), // Very light grey/white for clean look
-    onBackground = FluxDarkGrey,
-    surface = Color.White, // Clean white surface for glass effect
-    onSurface = FluxDarkGrey,
+// =============================================================================
+// Obsidian Nexus Light Color Scheme
+// =============================================================================
+val ObsidianLightColorScheme = lightColorScheme(
+    primary = ObsidianLightPrimary,
+    onPrimary = ObsidianLightOnPrimary,
+    primaryContainer = ObsidianLightPrimaryContainer,
+    onPrimaryContainer = ObsidianLightOnPrimaryContainer,
+    inversePrimary = ObsidianLightInversePrimary,
+    secondary = ObsidianLightSecondary,
+    onSecondary = ObsidianLightOnSecondary,
+    secondaryContainer = ObsidianLightSecondaryContainer,
+    onSecondaryContainer = ObsidianLightOnSecondaryContainer,
+    tertiary = ObsidianLightTertiary,
+    onTertiary = ObsidianLightOnTertiary,
+    tertiaryContainer = ObsidianLightTertiaryContainer,
+    onTertiaryContainer = ObsidianLightOnTertiaryContainer,
+    error = ObsidianLightError,
+    onError = ObsidianLightOnError,
+    errorContainer = ObsidianLightErrorContainer,
+    onErrorContainer = ObsidianLightOnErrorContainer,
+    background = ObsidianLightBackground,
+    onBackground = ObsidianLightOnBackground,
+    surface = ObsidianLightSurface,
+    onSurface = ObsidianLightOnSurface,
+    surfaceVariant = ObsidianLightSurfaceVariant,
+    onSurfaceVariant = ObsidianLightOnSurfaceVariant,
+    surfaceTint = ObsidianLightPrimary,
+    inverseSurface = ObsidianLightInverseSurface,
+    inverseOnSurface = ObsidianLightInverseOnSurface,
+    outline = ObsidianLightOutline,
+    outlineVariant = ObsidianLightOutlineVariant,
+    surfaceBright = ObsidianLightSurfaceBright,
+    surfaceContainer = ObsidianLightSurfaceContainer,
+    surfaceContainerHigh = ObsidianLightSurfaceContainerHigh,
+    surfaceContainerHighest = ObsidianLightSurfaceContainerHighest,
+    surfaceContainerLow = ObsidianLightSurfaceContainerLow,
+    surfaceContainerLowest = ObsidianLightSurfaceContainerLowest,
+    surfaceDim = ObsidianLightSurfaceDim,
+    scrim = Color.Black
 )
 
 @Composable
 fun NativeCodeTheme(
-    themeMode: com.ivarna.nativecode.core.utils.ThemeMode = com.ivarna.nativecode.core.utils.ThemeMode.DARK,
-    dynamicColor: Boolean = false,
+    darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit
 ) {
-    val darkTheme = when (themeMode) {
-        com.ivarna.nativecode.core.utils.ThemeMode.LIGHT -> false
-        com.ivarna.nativecode.core.utils.ThemeMode.DARK -> true
-        else -> isSystemInDarkTheme()
-    }
-
     val colorScheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
-            if (darkTheme) {
-                // Use Dynamic Dark but override Primary & Secondary
-                dynamicDarkColorScheme(context).copy(
-                    primary = FluxDarkGrey,
-                    onPrimary = TextWhite,
-                    secondary = BrandCream, // Light Secondary for Dark Mode
-                    onSecondary = FluxDarkGrey,
-                    background = FluxDarkSurface,
-                    surface = FluxDarkGrey
-                )
-            } else {
-                // Use Dynamic Light but override Primary & Secondary
-                dynamicLightColorScheme(context).copy(
-                    primary = BrandCream, // Soft Cream Primary
-                    onPrimary = FluxDarkGrey,
-                    secondary = FluxDarkGrey,
-                    onSecondary = Color.White,
-                    background = Color(0xFFFAFAFA),
-                    onBackground = FluxDarkGrey,
-                    surface = Color.White, // Clean white surface
-                    onSurface = FluxDarkGrey
-                )
-            }
-        }
-        darkTheme -> DarkColorScheme
-        else -> LightColorScheme
+        // Dynamic color is disabled in Obsidian Nexus to preserve brand identity
+        darkTheme -> ObsidianDarkColorScheme
+        else -> ObsidianLightColorScheme
     }
 
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-            window.statusBarColor = colorScheme.background.toArgb() // Match background
+            window.statusBarColor = colorScheme.background.toArgb()
             window.navigationBarColor = colorScheme.background.toArgb()
-            
-            // Handle Icon Colors
             WindowCompat.getInsetsController(window, view).apply {
-                isAppearanceLightStatusBars = !darkTheme // Light icons in Dark mode, Dark icons in Light mode
+                isAppearanceLightStatusBars = !darkTheme
                 isAppearanceLightNavigationBars = !darkTheme
             }
         }

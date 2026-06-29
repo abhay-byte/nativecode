@@ -6,15 +6,6 @@ import android.content.SharedPreferences
 enum class ThemeMode {
     LIGHT,
     DARK,
-    GRUVBOX,
-    NORD,
-    DRACULA,
-    SOLARIZED,
-    MONOKAI,
-    SKY_BREEZE,
-    LAVENDER_DREAM,
-    MINT_FRESH,
-    AMOLED_BLACK,
     SYSTEM
 }
 
@@ -32,5 +23,17 @@ class ThemePreferences(context: Context) {
 
     fun setThemeMode(mode: ThemeMode) {
         prefs.edit().putString("theme_mode", mode.name).apply()
+    }
+
+    fun isDarkTheme(context: Context): Boolean {
+        return when (getThemeMode()) {
+            ThemeMode.DARK -> true
+            ThemeMode.LIGHT -> false
+            ThemeMode.SYSTEM -> {
+                val uiMode = context.resources.configuration.uiMode
+                (uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) ==
+                    android.content.res.Configuration.UI_MODE_NIGHT_YES
+            }
+        }
     }
 }

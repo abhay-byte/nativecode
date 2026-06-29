@@ -41,7 +41,6 @@ import androidx.compose.ui.unit.sp
 import com.ivarna.nativecode.core.data.Distro
 import com.ivarna.nativecode.core.data.DistroComponent
 import com.ivarna.nativecode.ui.components.GlassScaffold
-import com.ivarna.nativecode.ui.theme.*
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeChild
 import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi

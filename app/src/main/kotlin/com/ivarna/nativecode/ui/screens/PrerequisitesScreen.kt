@@ -21,9 +21,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.luminance
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -96,7 +93,7 @@ fun PrerequisitesScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(androidx.compose.material3.MaterialTheme.colorScheme.background)
+            .background(MaterialTheme.colorScheme.background)
     ) {
         Column(
             modifier = Modifier
@@ -110,7 +107,7 @@ fun PrerequisitesScreen(
             // Title
             Text(
                 text = "Prerequisites",
-                color = androidx.compose.material3.MaterialTheme.colorScheme.onBackground,
+                color = MaterialTheme.colorScheme.onBackground,
                 fontSize = 28.sp,
                 fontWeight = FontWeight.Bold
             )
@@ -120,7 +117,7 @@ fun PrerequisitesScreen(
             // Subtitle
             Text(
                 text = "NativeCode requires these to function",
-                color = androidx.compose.material3.MaterialTheme.colorScheme.onBackground.copy(alpha=0.7f),
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha=0.7f),
                 fontSize = 14.sp
             )
             
@@ -210,7 +207,7 @@ fun PackageInstallationStep(
         ) {
             Text(
                 text = "Step 1: Install Required Apps",
-                color = androidx.compose.material3.MaterialTheme.colorScheme.onBackground,
+                color = MaterialTheme.colorScheme.onBackground,
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold
             )
@@ -219,7 +216,7 @@ fun PackageInstallationStep(
                 Icon(
                     imageVector = Icons.Default.Refresh,
                     contentDescription = "Refresh",
-                    tint = androidx.compose.material3.MaterialTheme.colorScheme.primary
+                    tint = MaterialTheme.colorScheme.primary
                 )
             }
         }
@@ -250,7 +247,7 @@ fun PackageInstallationStep(
         Button(
             onClick = onContinue,
             enabled = termuxInstalled.value && x11Installed.value,
-            colors = ButtonDefaults.buttonColors(containerColor = androidx.compose.material3.MaterialTheme.colorScheme.primary),
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
             modifier = Modifier
                 .fillMaxWidth()
                 .height(56.dp),
@@ -258,7 +255,7 @@ fun PackageInstallationStep(
         ) {
             Text(
                 "Continue",
-                color = androidx.compose.material3.MaterialTheme.colorScheme.onPrimary,
+                color = MaterialTheme.colorScheme.onPrimary,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold
             )
@@ -281,7 +278,7 @@ fun TermuxConfigurationStep(
     ) {
         Text(
             text = "Step 2: Configure Termux",
-            color = androidx.compose.material3.MaterialTheme.colorScheme.onBackground,
+            color = MaterialTheme.colorScheme.onBackground,
             fontSize = 20.sp,
             fontWeight = FontWeight.Bold
         )
@@ -290,7 +287,7 @@ fun TermuxConfigurationStep(
         
         Text(
             text = "Allow NativeCode to communicate with Termux",
-            color = androidx.compose.material3.MaterialTheme.colorScheme.onBackground.copy(alpha=0.7f),
+            color = MaterialTheme.colorScheme.onBackground.copy(alpha=0.7f),
             fontSize = 14.sp
         )
         
@@ -301,13 +298,13 @@ fun TermuxConfigurationStep(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(12.dp))
-                .background(Color(0xFF1E1E1E))
-                .border(1.dp, androidx.compose.material3.MaterialTheme.colorScheme.outline, RoundedCornerShape(12.dp))
+                .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+                .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(12.dp))
                 .padding(16.dp)
         ) {
             Text(
                 text = fixCommand,
-                color = Color(0xFF50fa7b),
+                color = MaterialTheme.colorScheme.primary,
                 fontSize = 12.sp,
                 fontFamily = FontFamily.Monospace
             )
@@ -332,7 +329,7 @@ fun TermuxConfigurationStep(
                     android.widget.Toast.makeText(context, "Termux not found!", android.widget.Toast.LENGTH_SHORT).show()
                 }
             },
-            colors = ButtonDefaults.buttonColors(containerColor = androidx.compose.material3.MaterialTheme.colorScheme.secondary),
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary),
             modifier = Modifier
                 .fillMaxWidth()
                 .height(56.dp),
@@ -340,7 +337,7 @@ fun TermuxConfigurationStep(
         ) {
             Text(
                 "Copy & Open Termux",
-                color = androidx.compose.material3.MaterialTheme.colorScheme.onSecondary,
+                color = MaterialTheme.colorScheme.onSecondary,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold
             )
@@ -356,14 +353,14 @@ fun TermuxConfigurationStep(
                 checked = configDone,
                 onCheckedChange = onConfigDone,
                 colors = CheckboxDefaults.colors(
-                    checkedColor = androidx.compose.material3.MaterialTheme.colorScheme.primary,
-                    uncheckedColor = androidx.compose.material3.MaterialTheme.colorScheme.outline
+                    checkedColor = MaterialTheme.colorScheme.primary,
+                    uncheckedColor = MaterialTheme.colorScheme.outline
                 )
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
                 "I've pasted and run the command in Termux",
-                color = androidx.compose.material3.MaterialTheme.colorScheme.onBackground,
+                color = MaterialTheme.colorScheme.onBackground,
                 fontSize = 14.sp
             )
         }
@@ -374,7 +371,7 @@ fun TermuxConfigurationStep(
         Button(
             onClick = onContinue,
             enabled = configDone,
-            colors = ButtonDefaults.buttonColors(containerColor = androidx.compose.material3.MaterialTheme.colorScheme.primary),
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
             modifier = Modifier
                 .fillMaxWidth()
                 .height(56.dp),
@@ -382,7 +379,7 @@ fun TermuxConfigurationStep(
         ) {
             Text(
                 "Continue",
-                color = androidx.compose.material3.MaterialTheme.colorScheme.onPrimary,
+                color = MaterialTheme.colorScheme.onPrimary,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold
             )
@@ -402,7 +399,7 @@ fun PermissionRequestStep(
     ) {
         Text(
             text = "Step 3: Grant Permission",
-            color = androidx.compose.material3.MaterialTheme.colorScheme.onBackground,
+            color = MaterialTheme.colorScheme.onBackground,
             fontSize = 20.sp,
             fontWeight = FontWeight.Bold
         )
@@ -413,15 +410,15 @@ fun PermissionRequestStep(
             modifier = Modifier
                 .size(120.dp)
                 .clip(androidx.compose.foundation.shape.CircleShape)
-                .background(androidx.compose.material3.MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.2f))
-                .border(2.dp, androidx.compose.material3.MaterialTheme.colorScheme.secondary.copy(alpha = 0.5f), androidx.compose.foundation.shape.CircleShape),
+                .background(MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.2f))
+                .border(2.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.5f), androidx.compose.foundation.shape.CircleShape),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = Icons.Default.Lock,
                 contentDescription = "Permission Lock",
                 modifier = Modifier.size(56.dp),
-                tint = androidx.compose.material3.MaterialTheme.colorScheme.secondary
+                tint = MaterialTheme.colorScheme.secondary
             )
         }
         
@@ -429,7 +426,7 @@ fun PermissionRequestStep(
         
         Text(
             text = "NativeCode needs permission to communicate with Termux",
-            color = androidx.compose.material3.MaterialTheme.colorScheme.onBackground.copy(alpha=0.7f),
+            color = MaterialTheme.colorScheme.onBackground.copy(alpha=0.7f),
             fontSize = 14.sp
         )
         
@@ -442,19 +439,19 @@ fun PermissionRequestStep(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(12.dp))
-                    .background(androidx.compose.material3.MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f))
+                    .background(MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f))
                     .padding(16.dp)
             ) {
                 Icon(
                     imageVector = Icons.Default.CheckCircle,
                     contentDescription = "Granted",
-                    tint = androidx.compose.material3.MaterialTheme.colorScheme.secondary,
+                    tint = MaterialTheme.colorScheme.secondary,
                     modifier = Modifier.size(24.dp)
                 )
                 Spacer(modifier = Modifier.width(12.dp))
                 Text(
                     "Permission Granted ✓",
-                    color = androidx.compose.material3.MaterialTheme.colorScheme.onBackground,
+                    color = MaterialTheme.colorScheme.onBackground,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -465,7 +462,7 @@ fun PermissionRequestStep(
                 onClick = {
                     permissionState.launchPermissionRequest()
                 },
-                colors = ButtonDefaults.buttonColors(containerColor = androidx.compose.material3.MaterialTheme.colorScheme.tertiary),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.tertiary),
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),
@@ -473,7 +470,7 @@ fun PermissionRequestStep(
             ) {
                 Text(
                     "Grant Permission",
-                    color = androidx.compose.material3.MaterialTheme.colorScheme.onTertiary,
+                    color = MaterialTheme.colorScheme.onTertiary,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -486,7 +483,7 @@ fun PermissionRequestStep(
         Button(
             onClick = onContinue,
             enabled = permissionState.status.isGranted,
-            colors = ButtonDefaults.buttonColors(containerColor = androidx.compose.material3.MaterialTheme.colorScheme.primary),
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
             modifier = Modifier
                 .fillMaxWidth()
                 .height(56.dp),
@@ -494,7 +491,7 @@ fun PermissionRequestStep(
         ) {
             Text(
                 "Next",
-                color = androidx.compose.material3.MaterialTheme.colorScheme.onPrimary,
+                color = MaterialTheme.colorScheme.onPrimary,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold
             )
@@ -513,7 +510,7 @@ fun PrerequisiteItem(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
-            .background(androidx.compose.material3.MaterialTheme.colorScheme.surfaceVariant.copy(alpha=0.3f))
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha=0.3f))
             .padding(16.dp)
     ) {
         Row(
@@ -524,21 +521,21 @@ fun PrerequisiteItem(
                 Icon(
                     imageVector = Icons.Default.CheckCircle,
                     contentDescription = "Installed",
-                    tint = androidx.compose.material3.MaterialTheme.colorScheme.secondary,
+                    tint = MaterialTheme.colorScheme.secondary,
                     modifier = Modifier.size(24.dp)
                 )
                 Spacer(modifier = Modifier.width(12.dp))
                 Column {
                     Text(
                         text = "$name ✓",
-                        color = androidx.compose.material3.MaterialTheme.colorScheme.onBackground,
+                        color = MaterialTheme.colorScheme.onBackground,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold
                     )
                     if (version != null) {
                         Text(
                             text = version,
-                            color = androidx.compose.material3.MaterialTheme.colorScheme.onBackground.copy(alpha=0.7f),
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha=0.7f),
                             fontSize = 12.sp
                         )
                     }
@@ -546,7 +543,7 @@ fun PrerequisiteItem(
             } else {
                 Text(
                     text = name,
-                    color = androidx.compose.material3.MaterialTheme.colorScheme.onBackground,
+                    color = MaterialTheme.colorScheme.onBackground,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.weight(1f)
@@ -554,15 +551,15 @@ fun PrerequisiteItem(
                 if (onInstall != null) {
                     Button(
                         onClick = onInstall,
-                        colors = ButtonDefaults.buttonColors(containerColor = androidx.compose.material3.MaterialTheme.colorScheme.outline),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.outline),
                         shape = RoundedCornerShape(8.dp)
                     ) {
-                        Text("Download", color = androidx.compose.material3.MaterialTheme.colorScheme.onPrimary)
+                        Text("Download", color = MaterialTheme.colorScheme.onPrimary)
                     }
                 } else {
                     Text(
                         text = "Not Installed",
-                        color = androidx.compose.material3.MaterialTheme.colorScheme.error,
+                        color = MaterialTheme.colorScheme.error,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -585,7 +582,7 @@ fun StepIndicator(currentStep: Int, totalSteps: Int) {
                     .size(if (step == currentStep) 12.dp else 8.dp)
                     .clip(androidx.compose.foundation.shape.CircleShape)
                     .background(
-                        if (step <= currentStep) androidx.compose.material3.MaterialTheme.colorScheme.primary else androidx.compose.material3.MaterialTheme.colorScheme.surfaceVariant
+                        if (step <= currentStep) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
                     )
             )
             if (step < totalSteps) {
@@ -607,7 +604,7 @@ fun OverlayPermissionStep(
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(
             text = "Step 4: Display Overlay",
-            color = androidx.compose.material3.MaterialTheme.colorScheme.onBackground,
+            color = MaterialTheme.colorScheme.onBackground,
             fontSize = 20.sp,
             fontWeight = FontWeight.Bold
         )
@@ -617,22 +614,22 @@ fun OverlayPermissionStep(
          // Permission Info Card
          androidx.compose.material3.Card(
             colors = androidx.compose.material3.CardDefaults.cardColors(
-                containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surface.copy(alpha = 0.3f)
+                containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.3f)
             ),
             shape = RoundedCornerShape(16.dp),
-            modifier = Modifier.fillMaxWidth().border(1.dp, androidx.compose.material3.MaterialTheme.colorScheme.outline, RoundedCornerShape(16.dp))
+            modifier = Modifier.fillMaxWidth().border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(16.dp))
          ) {
              Column(modifier = Modifier.padding(20.dp)) {
                  Text(
                     "⚠️ Critical Permission",
-                    color = androidx.compose.material3.MaterialTheme.colorScheme.error, // Usage error for warning
+                    color = MaterialTheme.colorScheme.error, // Usage error for warning
                     fontWeight = FontWeight.Bold,
                     fontSize = 18.sp
                  )
                  Spacer(modifier = Modifier.height(8.dp))
                  Text(
                     "To display the Linux desktop (X11) on your screen, Termux needs the 'Display over other apps' permission.",
-                    color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface,
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontSize = 15.sp
                  )
              }
@@ -648,19 +645,19 @@ fun OverlayPermissionStep(
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(12.dp))
                     .clickable { manualOverride = false }
-                    .background(androidx.compose.material3.MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f))
+                    .background(MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f))
                     .padding(16.dp)
             ) {
                 Icon(
                     imageVector = Icons.Default.CheckCircle,
                     contentDescription = "Granted",
-                    tint = androidx.compose.material3.MaterialTheme.colorScheme.secondary,
+                    tint = MaterialTheme.colorScheme.secondary,
                     modifier = Modifier.size(24.dp)
                 )
                 Spacer(modifier = Modifier.width(12.dp))
                 Text(
                     "Permission Granted ✓",
-                    color = androidx.compose.material3.MaterialTheme.colorScheme.onBackground,
+                    color = MaterialTheme.colorScheme.onBackground,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -687,11 +684,11 @@ fun OverlayPermissionStep(
                              }
                          }
                      },
-                     colors = ButtonDefaults.buttonColors(containerColor = androidx.compose.material3.MaterialTheme.colorScheme.primary),
+                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                      modifier = Modifier.weight(1f),
                      shape = RoundedCornerShape(12.dp)
                  ) {
-                     Text("Enable Overlay", fontSize = 13.sp, color = androidx.compose.material3.MaterialTheme.colorScheme.onPrimary, textAlign = TextAlign.Center, lineHeight = 16.sp)
+                     Text("Enable Overlay", fontSize = 13.sp, color = MaterialTheme.colorScheme.onPrimary, textAlign = TextAlign.Center, lineHeight = 16.sp)
                  }
                  
                  // App Info Button
@@ -705,11 +702,11 @@ fun OverlayPermissionStep(
                              Toast.makeText(context, "Could not open App Info", Toast.LENGTH_SHORT).show()
                          }
                      },
-                     colors = ButtonDefaults.buttonColors(containerColor = androidx.compose.material3.MaterialTheme.colorScheme.secondary),
+                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary),
                      modifier = Modifier.weight(1f),
                      shape = RoundedCornerShape(12.dp)
                  ) {
-                     Text("App Info", fontSize = 13.sp, color = androidx.compose.material3.MaterialTheme.colorScheme.onSecondary, textAlign = TextAlign.Center, lineHeight = 16.sp)
+                     Text("App Info", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSecondary, textAlign = TextAlign.Center, lineHeight = 16.sp)
                  }
              }
              
@@ -724,7 +721,7 @@ fun OverlayPermissionStep(
              ) {
                  Text(
                      "How to allow restricted settings on Android devices",
-                     color = androidx.compose.material3.MaterialTheme.colorScheme.secondary,
+                     color = MaterialTheme.colorScheme.secondary,
                      fontSize = 13.sp,
                      textAlign = TextAlign.Center,
                      textDecoration = androidx.compose.ui.text.style.TextDecoration.Underline
@@ -745,14 +742,14 @@ fun OverlayPermissionStep(
                      checked = manualOverride,
                      onCheckedChange = { manualOverride = it },
                      colors = CheckboxDefaults.colors(
-                         checkedColor = androidx.compose.material3.MaterialTheme.colorScheme.primary,
-                         uncheckedColor = androidx.compose.material3.MaterialTheme.colorScheme.onSurface.copy(alpha=0.6f)
+                         checkedColor = MaterialTheme.colorScheme.primary,
+                         uncheckedColor = MaterialTheme.colorScheme.onSurface.copy(alpha=0.6f)
                      )
                  )
                  Text(
                      "I have enabled this manually",
                      fontSize = 14.sp,
-                     color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface,
+                     color = MaterialTheme.colorScheme.onSurface,
                      modifier = Modifier.padding(start = 8.dp)
                  )
              }
@@ -765,8 +762,8 @@ fun OverlayPermissionStep(
             onClick = onContinue,
             enabled = manualOverride,
             colors = ButtonDefaults.buttonColors(
-                containerColor = androidx.compose.material3.MaterialTheme.colorScheme.primary,
-                disabledContainerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceVariant
+                containerColor = MaterialTheme.colorScheme.primary,
+                disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant
             ),
             modifier = Modifier
                 .fillMaxWidth()
@@ -775,7 +772,7 @@ fun OverlayPermissionStep(
         ) {
             Text(
                 "Next",
-                color = if (manualOverride) androidx.compose.material3.MaterialTheme.colorScheme.onPrimary else androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant,
+                color = if (manualOverride) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold
             )
@@ -814,7 +811,7 @@ fun ColumnScope.PhantomProcessStep(
         ) {
             Text(
                 text = "Step 5: Process Killer Fix",
-                color = androidx.compose.material3.MaterialTheme.colorScheme.onBackground,
+                color = MaterialTheme.colorScheme.onBackground,
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold
             )
@@ -824,22 +821,22 @@ fun ColumnScope.PhantomProcessStep(
             // Info Card
             androidx.compose.material3.Card(
                 colors = androidx.compose.material3.CardDefaults.cardColors(
-                    containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surface.copy(alpha = 0.3f)
+                    containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.3f)
                 ),
                 shape = RoundedCornerShape(16.dp),
-                modifier = Modifier.fillMaxWidth().border(1.dp, androidx.compose.material3.MaterialTheme.colorScheme.outline, RoundedCornerShape(16.dp))
+                modifier = Modifier.fillMaxWidth().border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(16.dp))
             ) {
                 Column(modifier = Modifier.padding(20.dp)) {
                     Text(
                         "⚠️ Android 12+ Stability Issue",
-                        color = androidx.compose.material3.MaterialTheme.colorScheme.error,
+                        color = MaterialTheme.colorScheme.error,
                         fontWeight = FontWeight.Bold,
                         fontSize = 18.sp
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         "Android 12 and higher kill background processes aggressively (Phantom Process Killer). This causes Termux to crash unexpectedly.",
-                        color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface,
+                        color = MaterialTheme.colorScheme.onSurface,
                         fontSize = 15.sp
                     )
                 }
@@ -848,9 +845,9 @@ fun ColumnScope.PhantomProcessStep(
             Spacer(modifier = Modifier.height(24.dp))
             
             if (checkingRoot) {
-                CircularProgressIndicator(color = androidx.compose.material3.MaterialTheme.colorScheme.primary)
+                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                 Spacer(modifier = Modifier.height(8.dp))
-                Text("Checking for Root access...", color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface.copy(alpha=0.6f))
+                Text("Checking for Root access...", color = MaterialTheme.colorScheme.onSurface.copy(alpha=0.6f))
             } else if (fixApplied) {
                 // Success State
                 Row(
@@ -858,19 +855,19 @@ fun ColumnScope.PhantomProcessStep(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(12.dp))
-                        .background(androidx.compose.material3.MaterialTheme.colorScheme.secondaryContainer)
+                        .background(MaterialTheme.colorScheme.secondaryContainer)
                         .padding(16.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.CheckCircle,
                         contentDescription = "Applied",
-                        tint = androidx.compose.material3.MaterialTheme.colorScheme.secondary,
+                        tint = MaterialTheme.colorScheme.secondary,
                         modifier = Modifier.size(24.dp)
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                     Text(
                         "Fix Applied Successfully ✓",
-                        color = androidx.compose.material3.MaterialTheme.colorScheme.onBackground,
+                        color = MaterialTheme.colorScheme.onBackground,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -879,7 +876,7 @@ fun ColumnScope.PhantomProcessStep(
                 // Root Available Action
                 Text(
                     "Root Access Detected ✅",
-                    color = androidx.compose.material3.MaterialTheme.colorScheme.secondary,
+                    color = MaterialTheme.colorScheme.secondary,
                     fontWeight = FontWeight.Bold
                 )
                 Spacer(modifier = Modifier.height(16.dp))
@@ -897,23 +894,23 @@ fun ColumnScope.PhantomProcessStep(
                             }
                         }
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = androidx.compose.material3.MaterialTheme.colorScheme.tertiary),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.tertiary),
                     modifier = Modifier.fillMaxWidth().height(50.dp),
                      shape = RoundedCornerShape(12.dp)
                 ) {
-                    Text("Apply Fix (Grant Root)", color = androidx.compose.material3.MaterialTheme.colorScheme.onTertiary)
+                    Text("Apply Fix (Grant Root)", color = MaterialTheme.colorScheme.onTertiary)
                 }
             } else {
                 // No Root
                  Text(
                     "Root Access Not Detected ❌",
-                    color = androidx.compose.material3.MaterialTheme.colorScheme.error,
+                    color = MaterialTheme.colorScheme.error,
                     fontWeight = FontWeight.Bold
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     "We cannot apply the fix automatically. Please run these commands from your PC via ADB:",
-                    color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface.copy(alpha=0.7f),
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha=0.7f),
                     fontSize = 13.sp,
                     textAlign = TextAlign.Center
                 )
@@ -930,8 +927,8 @@ fun ColumnScope.PhantomProcessStep(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(8.dp))
-                        .background(androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerHigh)
-                        .border(1.dp, androidx.compose.material3.MaterialTheme.colorScheme.outline, RoundedCornerShape(8.dp))
+                        .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                        .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(8.dp))
                         .padding(12.dp)
                         .clickable {
                             val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
@@ -942,7 +939,7 @@ fun ColumnScope.PhantomProcessStep(
                 ) {
                     Text(
                         text = commands,
-                        color = androidx.compose.material3.MaterialTheme.colorScheme.secondary,
+                        color = MaterialTheme.colorScheme.secondary,
                         fontSize = 11.sp,
                         fontFamily = FontFamily.Monospace,
                         lineHeight = 16.sp
@@ -962,9 +959,9 @@ fun ColumnScope.PhantomProcessStep(
                      },
                      modifier = Modifier.fillMaxWidth(),
                      colors = ButtonDefaults.outlinedButtonColors(
-                         contentColor = androidx.compose.material3.MaterialTheme.colorScheme.secondary
+                         contentColor = MaterialTheme.colorScheme.secondary
                      ),
-                     border = androidx.compose.foundation.BorderStroke(1.dp, androidx.compose.material3.MaterialTheme.colorScheme.secondary)
+                     border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.secondary)
                  ) {
                      Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
                      Spacer(modifier = Modifier.width(8.dp))
@@ -979,7 +976,7 @@ fun ColumnScope.PhantomProcessStep(
             // Always enabled, user can skip if they want/have to
             enabled = true,
             colors = ButtonDefaults.buttonColors(
-                containerColor = if (fixApplied) androidx.compose.material3.MaterialTheme.colorScheme.primary else androidx.compose.material3.MaterialTheme.colorScheme.secondary
+                containerColor = if (fixApplied) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary
             ),
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -990,7 +987,7 @@ fun ColumnScope.PhantomProcessStep(
         ) {
             Text(
                 if (fixApplied) "Next" else "Skip (Use ADB instead)",
-                color = if (fixApplied) androidx.compose.material3.MaterialTheme.colorScheme.onPrimary else androidx.compose.material3.MaterialTheme.colorScheme.onSecondary,
+                color = if (fixApplied) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSecondary,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold
             )
@@ -1045,7 +1042,7 @@ fun EnvironmentSetupStep(
     ) {
         Text(
             text = "Step 7: Environment Setup",
-            color = androidx.compose.material3.MaterialTheme.colorScheme.onBackground,
+            color = MaterialTheme.colorScheme.onBackground,
             fontSize = 20.sp,
             fontWeight = FontWeight.Bold
         )
@@ -1054,14 +1051,14 @@ fun EnvironmentSetupStep(
 
         Text(
             text = "Please run both scripts below to set up your environment.",
-            color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface,
+            color = MaterialTheme.colorScheme.onSurface,
             fontSize = 15.sp,
             textAlign = TextAlign.Center
         )
         Spacer(modifier = Modifier.height(4.dp))
         Text(
             text = "1. Initialize Environment: Sets up the core Linux system.\n2. Apply Termux Tweaks: Configures the shell and visuals (Optional).",
-            color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
             fontSize = 13.sp,
             textAlign = TextAlign.Center,
             lineHeight = 18.sp
@@ -1086,8 +1083,8 @@ fun EnvironmentSetupStep(
                 }
             },
             colors = ButtonDefaults.buttonColors(
-                containerColor = if (setupInitiated) androidx.compose.material3.MaterialTheme.colorScheme.secondaryContainer else androidx.compose.material3.MaterialTheme.colorScheme.primary,
-                contentColor = if (setupInitiated) androidx.compose.material3.MaterialTheme.colorScheme.secondary else androidx.compose.material3.MaterialTheme.colorScheme.onPrimary
+                containerColor = if (setupInitiated) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.primary,
+                contentColor = if (setupInitiated) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onPrimary
             ),
             enabled = !isSetupLoading && !setupInitiated,
             modifier = Modifier
@@ -1102,7 +1099,7 @@ fun EnvironmentSetupStep(
                 if (isSetupLoading) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(20.dp),
-                        color = Color.Black,
+                        color = MaterialTheme.colorScheme.onPrimary,
                         strokeWidth = 2.dp
                     )
                     Spacer(modifier = Modifier.width(12.dp))
@@ -1145,9 +1142,9 @@ fun EnvironmentSetupStep(
             },
             enabled = setupInitiated && !tweaksCompleted,
             colors = ButtonDefaults.buttonColors(
-                containerColor = if (tweaksCompleted) androidx.compose.material3.MaterialTheme.colorScheme.secondaryContainer else androidx.compose.material3.MaterialTheme.colorScheme.tertiary,
-                disabledContainerColor = if (tweaksCompleted) androidx.compose.material3.MaterialTheme.colorScheme.secondaryContainer else androidx.compose.material3.MaterialTheme.colorScheme.tertiary.copy(alpha=0.5f),
-                disabledContentColor = if (tweaksCompleted) androidx.compose.material3.MaterialTheme.colorScheme.secondary else androidx.compose.material3.MaterialTheme.colorScheme.onTertiary.copy(alpha = 0.5f)
+                containerColor = if (tweaksCompleted) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.tertiary,
+                disabledContainerColor = if (tweaksCompleted) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.tertiary.copy(alpha=0.5f),
+                disabledContentColor = if (tweaksCompleted) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onTertiary.copy(alpha = 0.5f)
             ),
             modifier = Modifier
                 .fillMaxWidth()
@@ -1170,14 +1167,14 @@ fun EnvironmentSetupStep(
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
                             "2. Apply Termux Tweaks (Optional)",
-                            color = androidx.compose.material3.MaterialTheme.colorScheme.onTertiary,
+                            color = MaterialTheme.colorScheme.onTertiary,
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold
                         )
                         if (tweaksInitiated) {
                              Text(
                                 "(Opened in Termux... Wait for completion)",
-                                color = androidx.compose.material3.MaterialTheme.colorScheme.onTertiary.copy(alpha=0.7f),
+                                color = MaterialTheme.colorScheme.onTertiary.copy(alpha=0.7f),
                                 fontSize = 12.sp
                             )
                         }
@@ -1194,8 +1191,8 @@ fun EnvironmentSetupStep(
             // Enforce only core setup
             enabled = setupInitiated,  
             colors = ButtonDefaults.buttonColors(
-                containerColor = androidx.compose.material3.MaterialTheme.colorScheme.primary,
-                disabledContainerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceVariant
+                containerColor = MaterialTheme.colorScheme.primary,
+                disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant
             ),
             modifier = Modifier
                 .fillMaxWidth()
@@ -1204,7 +1201,7 @@ fun EnvironmentSetupStep(
         ) {
             Text(
                 "Next",
-                color = if (setupInitiated) androidx.compose.material3.MaterialTheme.colorScheme.onPrimary else androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant,
+                color = if (setupInitiated) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold
             )
@@ -1222,7 +1219,7 @@ fun FinalInstructionsStep(
     ) {
         Text(
             text = "Step 11: Almost Done!",
-            color = androidx.compose.material3.MaterialTheme.colorScheme.onBackground,
+            color = MaterialTheme.colorScheme.onBackground,
             fontSize = 20.sp,
             fontWeight = FontWeight.Bold
         )
@@ -1232,10 +1229,10 @@ fun FinalInstructionsStep(
         // Warning Card
         androidx.compose.material3.Card(
             colors = androidx.compose.material3.CardDefaults.cardColors(
-                containerColor = androidx.compose.material3.MaterialTheme.colorScheme.errorContainer
+                containerColor = MaterialTheme.colorScheme.errorContainer
             ),
             shape = RoundedCornerShape(16.dp),
-            modifier = Modifier.fillMaxWidth().border(1.dp, androidx.compose.material3.MaterialTheme.colorScheme.error, RoundedCornerShape(16.dp))
+            modifier = Modifier.fillMaxWidth().border(1.dp, MaterialTheme.colorScheme.error, RoundedCornerShape(16.dp))
         ) {
             Column(modifier = Modifier.padding(24.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1243,7 +1240,7 @@ fun FinalInstructionsStep(
                     Spacer(modifier = Modifier.width(16.dp))
                     Text(
                         "Important Note",
-                        color = androidx.compose.material3.MaterialTheme.colorScheme.error,
+                        color = MaterialTheme.colorScheme.error,
                         fontWeight = FontWeight.Bold,
                         fontSize = 20.sp
                     )
@@ -1253,7 +1250,7 @@ fun FinalInstructionsStep(
                 
                 Text(
                     text = "NativeCode runs on top of Termux.",
-                    color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface,
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -1262,7 +1259,7 @@ fun FinalInstructionsStep(
                 
                 Text(
                     text = "You must keep Termux running in the background. Do not swipe close Termux from your recent apps!",
-                    color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface.copy(alpha = 0.9f),
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.9f),
                     fontSize = 15.sp,
                     lineHeight = 22.sp
                 )
@@ -1274,7 +1271,7 @@ fun FinalInstructionsStep(
         // Complete Button
         Button(
             onClick = onComplete,
-            colors = ButtonDefaults.buttonColors(containerColor = androidx.compose.material3.MaterialTheme.colorScheme.primary),
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
             modifier = Modifier
                 .fillMaxWidth()
                 .height(56.dp),
@@ -1282,7 +1279,7 @@ fun FinalInstructionsStep(
         ) {
             Text(
                 "Complete Setup",
-                color = androidx.compose.material3.MaterialTheme.colorScheme.onPrimary,
+                color = MaterialTheme.colorScheme.onPrimary,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold
             )
@@ -1309,7 +1306,7 @@ fun ColumnScope.SystemCheckStep(
         ) {
             Text(
                 text = "Step 8: System Check",
-                color = androidx.compose.material3.MaterialTheme.colorScheme.onBackground,
+                color = MaterialTheme.colorScheme.onBackground,
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold
             )
@@ -1318,7 +1315,7 @@ fun ColumnScope.SystemCheckStep(
             
             Text(
                 text = "Checking your system resources",
-                color = androidx.compose.material3.MaterialTheme.colorScheme.onBackground.copy(alpha=0.7f),
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha=0.7f),
                 fontSize = 14.sp,
                 textAlign = TextAlign.Center
             )
@@ -1330,7 +1327,7 @@ fun ColumnScope.SystemCheckStep(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(12.dp))
-                    .background(androidx.compose.material3.MaterialTheme.colorScheme.surfaceVariant.copy(alpha=0.3f))
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha=0.3f))
                     .padding(20.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1342,13 +1339,13 @@ fun ColumnScope.SystemCheckStep(
                     Column {
                         Text(
                             text = "System RAM",
-                            color = androidx.compose.material3.MaterialTheme.colorScheme.onBackground,
+                            color = MaterialTheme.colorScheme.onBackground,
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
                             text = "%.2f GB".format(memoryInfo.totalRamGB),
-                            color = androidx.compose.material3.MaterialTheme.colorScheme.secondary,
+                            color = MaterialTheme.colorScheme.secondary,
                             fontSize = 24.sp,
                             fontWeight = FontWeight.Bold
                         )
@@ -1364,20 +1361,20 @@ fun ColumnScope.SystemCheckStep(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(8.dp))
-                                .background(androidx.compose.material3.MaterialTheme.colorScheme.secondaryContainer)
+                                .background(MaterialTheme.colorScheme.secondaryContainer)
                                 .padding(12.dp)
                         ) {
                             Column {
                                 Text(
                                     text = "✓ Good RAM",
-                                    color = androidx.compose.material3.MaterialTheme.colorScheme.secondary,
+                                    color = MaterialTheme.colorScheme.secondary,
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.Bold
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
                                     text = "Your RAM is sufficient. For optimal performance, 12GB RAM would be great!",
-                                    color = androidx.compose.material3.MaterialTheme.colorScheme.onBackground.copy(alpha=0.8f),
+                                    color = MaterialTheme.colorScheme.onBackground.copy(alpha=0.8f),
                                     fontSize = 12.sp
                                 )
                             }
@@ -1390,20 +1387,20 @@ fun ColumnScope.SystemCheckStep(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(8.dp))
-                                .background(androidx.compose.material3.MaterialTheme.colorScheme.errorContainer)
+                                .background(MaterialTheme.colorScheme.errorContainer)
                                 .padding(12.dp)
                         ) {
                             Column {
                                 Text(
                                     text = "🚨 CRITICAL: Low RAM",
-                                    color = androidx.compose.material3.MaterialTheme.colorScheme.error,
+                                    color = MaterialTheme.colorScheme.error,
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.Bold
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
                                     text = "Minimum required RAM: 8GB\nYour system will experience severe performance issues and instability.",
-                                    color = androidx.compose.material3.MaterialTheme.colorScheme.onBackground.copy(alpha=0.8f),
+                                    color = MaterialTheme.colorScheme.onBackground.copy(alpha=0.8f),
                                     fontSize = 12.sp
                                 )
                             }
@@ -1419,7 +1416,7 @@ fun ColumnScope.SystemCheckStep(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(12.dp))
-                    .background(androidx.compose.material3.MaterialTheme.colorScheme.surface.copy(alpha = 0.3f))
+                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.3f))
                     .padding(20.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1431,13 +1428,13 @@ fun ColumnScope.SystemCheckStep(
                     Column {
                         Text(
                             text = "System SWAP",
-                            color = androidx.compose.material3.MaterialTheme.colorScheme.onBackground,
+                            color = MaterialTheme.colorScheme.onBackground,
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
                             text = "%.2f GB".format(memoryInfo.totalSwapGB),
-                            color = if (memoryInfo.totalSwapGB <= 7.9f) androidx.compose.material3.MaterialTheme.colorScheme.error else androidx.compose.material3.MaterialTheme.colorScheme.secondary,
+                            color = if (memoryInfo.totalSwapGB <= 7.9f) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.secondary,
                             fontSize = 24.sp,
                             fontWeight = FontWeight.Bold
                         )
@@ -1451,20 +1448,20 @@ fun ColumnScope.SystemCheckStep(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(8.dp))
-                            .background(androidx.compose.material3.MaterialTheme.colorScheme.errorContainer)
+                            .background(MaterialTheme.colorScheme.errorContainer)
                             .padding(12.dp)
                     ) {
                         Column {
                             Text(
                                 text = "🚨 CRITICAL: Low SWAP",
-                                color = androidx.compose.material3.MaterialTheme.colorScheme.error,
+                                color = MaterialTheme.colorScheme.error,
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
                                 text = "Minimum required SWAP: 8GB\nWithout sufficient SWAP, your Linux environment will be UNSTABLE and may crash.",
-                                color = androidx.compose.material3.MaterialTheme.colorScheme.onBackground.copy(alpha=0.8f),
+                                color = MaterialTheme.colorScheme.onBackground.copy(alpha=0.8f),
                                 fontSize = 12.sp
                             )
                             Spacer(modifier = Modifier.height(8.dp))
@@ -1479,11 +1476,11 @@ fun ColumnScope.SystemCheckStep(
                                         Toast.makeText(context, "Could not open settings", Toast.LENGTH_SHORT).show()
                                     }
                                 },
-                                colors = ButtonDefaults.buttonColors(containerColor = androidx.compose.material3.MaterialTheme.colorScheme.error),
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(8.dp)
                             ) {
-                                Text("Go to Settings", color = Color.White, fontSize = 14.sp)
+                                Text("Go to Settings", color = MaterialTheme.colorScheme.onError, fontSize = 14.sp)
                             }
                         }
                     }
@@ -1494,7 +1491,7 @@ fun ColumnScope.SystemCheckStep(
         // Next Button Pinned to Bottom
         Button(
             onClick = onContinue,
-            colors = ButtonDefaults.buttonColors(containerColor = androidx.compose.material3.MaterialTheme.colorScheme.primary),
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
@@ -1504,7 +1501,7 @@ fun ColumnScope.SystemCheckStep(
         ) {
             Text(
                 "Next",
-                color = androidx.compose.material3.MaterialTheme.colorScheme.onPrimary,
+                color = MaterialTheme.colorScheme.onPrimary,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold
             )
@@ -1528,7 +1525,7 @@ fun BusyBoxInstallStep(
     ) {
         Text(
             text = "Step 6: BusyBox Installation",
-            color = androidx.compose.material3.MaterialTheme.colorScheme.onBackground,
+            color = MaterialTheme.colorScheme.onBackground,
             fontSize = 20.sp,
             fontWeight = FontWeight.Bold
         )
@@ -1537,7 +1534,7 @@ fun BusyBoxInstallStep(
         
         Text(
             text = "For Rooted Users Only",
-            color = androidx.compose.material3.MaterialTheme.colorScheme.secondary,
+            color = MaterialTheme.colorScheme.secondary,
             fontSize = 14.sp,
             fontWeight = FontWeight.Bold
         )
@@ -1547,10 +1544,10 @@ fun BusyBoxInstallStep(
         // Always show the card so users know about the requirement
         androidx.compose.material3.Card(
             colors = androidx.compose.material3.CardDefaults.cardColors(
-                containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surface.copy(alpha = 0.3f)
+                containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.3f)
             ),
             shape = RoundedCornerShape(16.dp),
-            modifier = Modifier.fillMaxWidth().border(1.dp, androidx.compose.material3.MaterialTheme.colorScheme.outline, RoundedCornerShape(16.dp))
+            modifier = Modifier.fillMaxWidth().border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(16.dp))
         ) {
             Column(modifier = Modifier.padding(20.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1559,13 +1556,13 @@ fun BusyBoxInstallStep(
                     Column {
                         Text(
                         "BusyBox NDK",
-                        color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface,
+                        color = MaterialTheme.colorScheme.onSurface,
                         fontWeight = FontWeight.Bold,
                         fontSize = 18.sp
                         )
                         Text(
                         "Required for Chroot (Rooted Devices)",
-                        color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface.copy(alpha=0.7f),
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha=0.7f),
                         fontSize = 12.sp
                         )
                     }
@@ -1578,7 +1575,7 @@ fun BusyBoxInstallStep(
                         "Root access detected! You MUST install this module to use Chroot environments."
                     else 
                         "Root access was not automatically detected, but if you have a rooted device (Magisk/KernelSU/APatch), you MUST install this module.",
-                    color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface,
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontSize = 14.sp
                 )
                 
@@ -1586,7 +1583,7 @@ fun BusyBoxInstallStep(
                 
                 Text(
                     "Please download and flash this module in your root manager.",
-                    color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface.copy(alpha=0.8f),
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha=0.8f),
                     fontSize = 13.sp
                 )
 
@@ -1594,7 +1591,7 @@ fun BusyBoxInstallStep(
 
                 Text(
                     "Credit: osm0sis",
-                    color = androidx.compose.material3.MaterialTheme.colorScheme.secondary,
+                    color = MaterialTheme.colorScheme.secondary,
                     fontSize = 12.sp
                 )
                 
@@ -1607,9 +1604,9 @@ fun BusyBoxInstallStep(
                         context.startActivity(intent)
                     },
                     modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(containerColor = androidx.compose.material3.MaterialTheme.colorScheme.primary)
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                 ) {
-                    Text("Download Module", color = androidx.compose.material3.MaterialTheme.colorScheme.onPrimary)
+                    Text("Download Module", color = MaterialTheme.colorScheme.onPrimary)
                 }
             }
         }
@@ -1621,15 +1618,15 @@ fun BusyBoxInstallStep(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(12.dp))
-                    .background(androidx.compose.material3.MaterialTheme.colorScheme.secondaryContainer.copy(alpha=0.3f))
+                    .background(MaterialTheme.colorScheme.secondaryContainer.copy(alpha=0.3f))
                     .padding(16.dp)
             ) {
                  Row(verticalAlignment = Alignment.CenterVertically) {
-                     Icon(Icons.Default.CheckCircle, null, tint = androidx.compose.material3.MaterialTheme.colorScheme.secondary)
+                     Icon(Icons.Default.CheckCircle, null, tint = MaterialTheme.colorScheme.secondary)
                      Spacer(modifier = Modifier.width(12.dp))
                      Text(
                         "Not rooted? You can safely skip this step.",
-                        color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface,
+                        color = MaterialTheme.colorScheme.onSurface,
                         fontSize = 14.sp
                      )
                  }
@@ -1640,7 +1637,7 @@ fun BusyBoxInstallStep(
         
         Button(
             onClick = onContinue,
-            colors = ButtonDefaults.buttonColors(containerColor = androidx.compose.material3.MaterialTheme.colorScheme.primary),
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
             modifier = Modifier
                 .fillMaxWidth()
                 .height(56.dp),
@@ -1648,7 +1645,7 @@ fun BusyBoxInstallStep(
         ) {
             Text(
                 "Next",
-                color = androidx.compose.material3.MaterialTheme.colorScheme.onPrimary,
+                color = MaterialTheme.colorScheme.onPrimary,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold
             )

@@ -988,4 +988,139 @@ object TermuxIntentFactory {
         """.trimIndent()
         return buildRunCommandIntent(command, runInBackground = false)
     }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // PROJECT MANAGEMENT (Git, Diff, APK, Directory)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    private fun getNativeCodeOutputDir(): String = "$TERMUX_HOME_DIR/.nativecode_output"
+
+    private fun buildOutputCallbackCommand(outputFile: String, callbackName: String): String {
+        return "; am start -a android.intent.action.VIEW -d \"nativecode://callback?result=success&name=$callbackName\""
+    }
+
+    /**
+     * Clone a GitHub repository to a local path.
+     * Runs in background if [runInBackground] is true.
+     */
+    fun buildGitCloneIntent(repoUrl: String, targetPath: String, runInBackground: Boolean = true): Intent {
+        val safeUrl = repoUrl.replace("\"", "\\\"")
+        val safePath = targetPath.replace("\"", "\\\"")
+        val callbackName = "git_clone_${System.currentTimeMillis()}"
+        val outputFile = "${getNativeCodeOutputDir()}/$callbackName.txt"
+        
+        val command = """
+            mkdir -p "${getNativeCodeOutputDir()}"
+            echo "[NativeCode] Cloning repository..." > "$outputFile"
+            if git clone "$safeUrl" "$safePath" 2>&1; then
+                echo "[NativeCode] Clone completed successfully." >> "$outputFile"
+                echo "PATH:$safePath" >> "$outputFile"
+            else
+                echo "[NativeCode] Clone failed." >> "$outputFile"
+            fi
+            ${buildOutputCallbackCommand(outputFile, callbackName)}
+        """.trimIndent().replace("\n", " ")
+        
+        return buildRunCommandIntent(command, runInBackground = runInBackground)
+    }
+
+    /**
+     * Run git diff in a project directory and write output to a file.
+     * The app can then read the file and display the diff.
+     */
+    fun buildGitDiffIntent(projectPath: String, runInBackground: Boolean = true): Intent {
+        val safePath = projectPath.replace("\"", "\\\"")
+        val callbackName = "git_diff_${System.currentTimeMillis()}"
+        val outputFile = "${getNativeCodeOutputDir()}/$callbackName.txt"
+        
+        val command = """
+            mkdir -p "${getNativeCodeOutputDir()}"
+            cd "$safePath" 2>/dev/null || cd /home/flux || cd /home
+            if [ -d .git ]; then
+                echo "=== GIT DIFF ===" > "$outputFile"
+                git diff --no-color 2>&1 >> "$outputFile" || echo "No changes to display." >> "$outputFile"
+                echo "" >> "$outputFile"
+                echo "=== GIT STATUS ===" >> "$outputFile"
+                git status --short 2>&1 >> "$outputFile"
+            else
+                echo "Not a git repository." > "$outputFile"
+            fi
+            ${buildOutputCallbackCommand(outputFile, callbackName)}
+        """.trimIndent().replace("\n", " ")
+        
+        return buildRunCommandIntent(command, runInBackground = runInBackground)
+    }
+
+    /**
+     * Find APK files in a project directory and write results to a file.
+     */
+    fun buildFindApksIntent(projectPath: String, runInBackground: Boolean = true): Intent {
+        val safePath = projectPath.replace("\"", "\\\"")
+        val callbackName = "find_apks_${System.currentTimeMillis()}"
+        val outputFile = "${getNativeCodeOutputDir()}/$callbackName.txt"
+        
+        val command = """
+            mkdir -p "${getNativeCodeOutputDir()}"
+            echo "=== APK FILES ===" > "$outputFile"
+            find "$safePath" -type f -name "*.apk" 2>/dev/null >> "$outputFile"
+            echo "" >> "$outputFile"
+            echo "=== BUILD OUTPUT DIRECTORIES ===" >> "$outputFile"
+            find "$safePath" -type d -name "build" 2>/dev/null | head -10 >> "$outputFile"
+            ${buildOutputCallbackCommand(outputFile, callbackName)}
+        """.trimIndent().replace("\n", " ")
+        
+        return buildRunCommandIntent(command, runInBackground = runInBackground)
+    }
+
+    /**
+     * List files in a project directory and write results to a file.
+     */
+    fun buildDirectoryListIntent(projectPath: String, runInBackground: Boolean = true): Intent {
+        val safePath = projectPath.replace("\"", "\\\"")
+        val callbackName = "dir_list_${System.currentTimeMillis()}"
+        val outputFile = "${getNativeCodeOutputDir()}/$callbackName.txt"
+        
+        val command = """
+            mkdir -p "${getNativeCodeOutputDir()}"
+            echo "=== DIRECTORY LISTING ===" > "$outputFile"
+            ls -la "$safePath" 2>/dev/null >> "$outputFile" || echo "Directory not accessible." >> "$outputFile"
+            echo "" >> "$outputFile"
+            echo "=== SUBDIRECTORIES ===" >> "$outputFile"
+            find "$safePath" -maxdepth 2 -type d 2>/dev/null | head -50 >> "$outputFile"
+            ${buildOutputCallbackCommand(outputFile, callbackName)}
+        """.trimIndent().replace("\n", " ")
+        
+        return buildRunCommandIntent(command, runInBackground = runInBackground)
+    }
+
+    /**
+     * Ensure a project's images directory exists.
+     * Creates <projectPath>/images if it doesn't exist.
+     */
+    fun buildEnsureImagesDirIntent(projectPath: String): Intent {
+        val safePath = projectPath.replace("\"", "\\\"")
+        val command = "mkdir -p \"$safePath/images\" && echo \"Images directory ready: $safePath/images\""
+        return buildRunCommandIntent(command, runInBackground = true)
+    }
+
+    /**
+     * Copy a shared image URI into the project's images directory.
+     * Since Termux can't directly access content URIs, we generate a script
+     * that uses Android's content resolver via am or termux-api if available.
+     * Fallback: the app should copy the file itself via ContentResolver.
+     */
+    fun buildCopyImageToProjectIntent(projectPath: String, sourcePath: String): Intent {
+        val safePath = projectPath.replace("\"", "\\\"")
+        val safeSource = sourcePath.replace("\"", "\\\"")
+        val imagesDir = "$safePath/images"
+        val timestamp = System.currentTimeMillis()
+        
+        val command = """
+            mkdir -p "$imagesDir"
+            cp "$safeSource" "$imagesDir/shared_image_$timestamp.jpg" 2>/dev/null || cp "$safeSource" "$imagesDir/shared_image_$timestamp.png" 2>/dev/null || echo "Failed to copy image"
+            echo "Image copied to: $imagesDir"
+        """.trimIndent().replace("\n", " ")
+        
+        return buildRunCommandIntent(command, runInBackground = true)
+    }
 }

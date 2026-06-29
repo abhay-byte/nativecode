@@ -51,6 +51,7 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: android.content.Intent) {
         super.onNewIntent(intent)
         handleDeepLink(intent)
+        handleSharedImage(intent)
     }
 
     private fun handleDeepLink(intent: android.content.Intent) {
@@ -61,6 +62,21 @@ class MainActivity : ComponentActivity() {
         when (uri.host) {
             "callback" -> handleScriptCallback(uri)
             "codex-response", "codex-oauth" -> handleCodexResponse(uri)
+        }
+    }
+
+    private fun handleSharedImage(intent: android.content.Intent) {
+        if (intent.action == android.content.Intent.ACTION_SEND && intent.type?.startsWith("image/") == true) {
+            val imageUri = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                intent.getParcelableExtra(android.content.Intent.EXTRA_STREAM, android.net.Uri::class.java)
+            } else {
+                @Suppress("DEPRECATION")
+                intent.getParcelableExtra(android.content.Intent.EXTRA_STREAM)
+            }
+            if (imageUri != null) {
+                android.util.Log.d("NativeCode", "Received shared image: $imageUri")
+                StateManager.setPendingSharedImageUri(imageUri.toString())
+            }
         }
     }
 
@@ -93,6 +109,50 @@ class MainActivity : ComponentActivity() {
         android.util.Log.d("NativeCode", "Script callback: result=$result, scriptName=$scriptName")
 
         if (result == "success") {
+             // Handle project operation callbacks
+             when {
+                 scriptName.startsWith("git_diff_") -> {
+                     readTermuxOutputFile(scriptName) { content ->
+                         StateManager.setGitDiffResult(content)
+                         StateManager.updateBackgroundTask(scriptName, com.ivarna.nativecode.core.model.BackgroundTaskStatus.SUCCESS, content)
+                     }
+                     return
+                 }
+                 scriptName.startsWith("find_apks_") -> {
+                     readTermuxOutputFile(scriptName) { content ->
+                         val apkFiles = content.lines().filter { it.endsWith(".apk") }
+                         StateManager.setApkListResult(apkFiles)
+                         StateManager.updateBackgroundTask(scriptName, com.ivarna.nativecode.core.model.BackgroundTaskStatus.SUCCESS, content)
+                     }
+                     return
+                 }
+                 scriptName.startsWith("dir_list_") -> {
+                     readTermuxOutputFile(scriptName) { content ->
+                         val lines = content.lines().filter { it.isNotBlank() }
+                         StateManager.setDirectoryListResult(lines)
+                         StateManager.updateBackgroundTask(scriptName, com.ivarna.nativecode.core.model.BackgroundTaskStatus.SUCCESS, content)
+                     }
+                     return
+                 }
+                 scriptName.startsWith("git_clone_") -> {
+                     readTermuxOutputFile(scriptName) { content ->
+                         val pathLine = content.lines().find { it.startsWith("PATH:") }
+                         val clonedPath = pathLine?.removePrefix("PATH:")?.trim()
+                         if (clonedPath != null) {
+                             StateManager.addProject(this, com.ivarna.nativecode.core.model.Project(
+                                 path = clonedPath,
+                                 name = clonedPath.substringAfterLast("/").takeIf { it.isNotEmpty() } ?: "Root",
+                                 category = "General"
+                             ))
+                             StateManager.triggerRefresh()
+                             android.widget.Toast.makeText(this, "Project cloned successfully! ✅", android.widget.Toast.LENGTH_SHORT).show()
+                         }
+                         StateManager.updateBackgroundTask(scriptName, com.ivarna.nativecode.core.model.BackgroundTaskStatus.SUCCESS, content)
+                     }
+                     return
+                 }
+             }
+             
              val queueManager = com.ivarna.nativecode.core.utils.InstallationQueueManager
              val currentTask = queueManager.currentTask
 
@@ -130,6 +190,27 @@ class MainActivity : ComponentActivity() {
         } else {
              android.widget.Toast.makeText(this, "Task '$scriptName' failed! ❌", android.widget.Toast.LENGTH_LONG).show()
              com.ivarna.nativecode.core.utils.InstallationQueueManager.clear()
+        }
+    }
+
+    private fun readTermuxOutputFile(callbackName: String, onContent: (String) -> Unit) {
+        lifecycleScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            try {
+                val outputFile = java.io.File("/data/data/com.termux/files/home/.nativecode_output/$callbackName.txt")
+                val content = if (outputFile.exists()) {
+                    outputFile.readText(Charsets.UTF_8)
+                } else {
+                    "Output file not found."
+                }
+                withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    onContent(content)
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("NativeCode", "Failed to read Termux output file", e)
+                withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    onContent("Error reading output: ${e.message}")
+                }
+            }
         }
     }
 
@@ -196,6 +277,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         handleDeepLink(intent)
+        handleSharedImage(intent)
         setContent {
             // Watch Theme Preference
             val context = LocalContext.current
@@ -204,7 +286,8 @@ class MainActivity : ComponentActivity() {
             // Lift state up
             var currentThemeMode by remember { mutableStateOf(themePrefs.getThemeMode()) }
 
-            NativeCodeTheme(themeMode = currentThemeMode) {
+            val darkTheme = themePrefs.isDarkTheme(context)
+            NativeCodeTheme(darkTheme = darkTheme) {
                 val onboardingComplete = StateManager.isOnboardingComplete(this@MainActivity)
                 
                 // Permission State (Lifted for Settings and Home access)

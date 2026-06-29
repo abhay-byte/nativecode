@@ -1,5 +1,7 @@
 package com.ivarna.nativecode.ui.screens
 
+import android.content.ClipboardManager
+import android.content.ClipData
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -13,13 +15,11 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.graphics.luminance
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.rounded.*
-import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -33,33 +33,22 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.ivarna.nativecode.R
-import com.ivarna.nativecode.ui.components.GlassSettingCard
-import com.ivarna.nativecode.core.utils.ThemePreferences
-import com.ivarna.nativecode.core.utils.ThemeMode
-import com.ivarna.nativecode.core.utils.TermuxX11Preferences
-import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.haze
-import com.ivarna.nativecode.ui.theme.NativeCodeTheme
-import com.ivarna.nativecode.ui.theme.GlassBorder
-import com.ivarna.nativecode.core.data.ScriptManager
-import com.ivarna.nativecode.core.data.TermuxIntentFactory
-
-import com.ivarna.nativecode.core.utils.StateManager
-import com.google.accompanist.permissions.ExperimentalPermissionsApi
-import com.google.accompanist.permissions.PermissionState
-import com.google.accompanist.permissions.isGranted
-import kotlinx.coroutines.launch
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import com.ivarna.nativecode.ui.theme.FluxAccentCyan
-import com.ivarna.nativecode.ui.theme.FluxAccentMagenta
-import com.ivarna.nativecode.ui.theme.FluxBackgroundStart
-import com.ivarna.nativecode.ui.theme.GlassWhiteLow
-import com.ivarna.nativecode.ui.theme.GlassWhiteMedium
-import android.content.ClipboardManager
-import android.content.ClipData
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.PermissionState
+import com.google.accompanist.permissions.isGranted
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.haze
+import kotlinx.coroutines.launch
+import com.ivarna.nativecode.R
+import com.ivarna.nativecode.ui.components.GlassSettingCard
+import com.ivarna.nativecode.core.utils.ThemeMode
+import com.ivarna.nativecode.core.utils.TermuxX11Preferences
+import com.ivarna.nativecode.core.data.ScriptManager
+import com.ivarna.nativecode.core.data.TermuxIntentFactory
+import com.ivarna.nativecode.core.utils.StateManager
 
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class)
@@ -76,7 +65,6 @@ fun SettingsScreen(
     currentTheme: ThemeMode = ThemeMode.SYSTEM
 ) {
     val context = LocalContext.current
-    // No need for local ThemePreferences if we pass it down, but keeping for consistency if other things need it
     
     // Theme Dropdown State
     var themeExpanded by remember { mutableStateOf(false) }
@@ -111,7 +99,7 @@ fun SettingsScreen(
                     navigationIcon = {
                         IconButton(onClick = onBack) {
                             Icon(
-                                imageVector = Icons.Rounded.ArrowBack, // Standard icon
+                                imageVector = Icons.Rounded.ArrowBack,
                                 contentDescription = "Back",
                                 tint = MaterialTheme.colorScheme.onBackground
                             )
@@ -207,7 +195,7 @@ fun SettingsScreen(
                                         permissionState.launchPermissionRequest()
                                     }
                                 },
-                                shape = androidx.compose.foundation.shape.RoundedCornerShape(50),
+                                shape = RoundedCornerShape(50),
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = if (setupCompleted.value) Color.Transparent else MaterialTheme.colorScheme.primary,
                                     contentColor = if (setupCompleted.value) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onPrimary
@@ -255,7 +243,7 @@ fun SettingsScreen(
                                         permissionState.launchPermissionRequest()
                                     }
                                 },
-                                shape = androidx.compose.foundation.shape.RoundedCornerShape(50),
+                                shape = RoundedCornerShape(50),
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = if (tweaksApplied.value) Color.Transparent else MaterialTheme.colorScheme.secondary,
                                     contentColor = if (tweaksApplied.value) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSecondary
@@ -303,7 +291,7 @@ fun SettingsScreen(
                                 Column(modifier = Modifier.weight(1f)) {
                                     if (!termuxInstalled.value) {
                                         Box(
-                                            modifier = Modifier.fillMaxWidth().clip(androidx.compose.foundation.shape.RoundedCornerShape(8.dp)).background(MaterialTheme.colorScheme.surfaceVariant).padding(8.dp),
+                                            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).background(MaterialTheme.colorScheme.surfaceVariant).padding(8.dp),
                                             contentAlignment = Alignment.Center
                                         ) {
                                             Text("Not Installed", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
@@ -324,7 +312,7 @@ fun SettingsScreen(
                                 Column(modifier = Modifier.weight(1f)) {
                                     if (!x11Installed.value) {
                                         Box(
-                                            modifier = Modifier.fillMaxWidth().clip(androidx.compose.foundation.shape.RoundedCornerShape(8.dp)).background(MaterialTheme.colorScheme.surfaceVariant).padding(8.dp),
+                                            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).background(MaterialTheme.colorScheme.surfaceVariant).padding(8.dp),
                                             contentAlignment = Alignment.Center
                                         ) {
                                             Text("Not Installed", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
@@ -365,7 +353,7 @@ fun SettingsScreen(
                              Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .background(MaterialTheme.colorScheme.surfaceContainerHigh, androidx.compose.foundation.shape.RoundedCornerShape(8.dp))
+                                    .background(MaterialTheme.colorScheme.surfaceContainerHighest, RoundedCornerShape(8.dp))
                                     .padding(12.dp)
                             ) {
                                 Text(
@@ -811,13 +799,13 @@ fun SettingsScreen(
                                 modifier = Modifier
                                     .size(64.dp)
                                     .clip(CircleShape)
-                                    .background(Color(0xFF1A1A1A)),
+                                    .background(MaterialTheme.colorScheme.surface),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Image(
                                     painter = painterResource(id = R.drawable.logo),
                                     contentDescription = "NativeCode Logo",
-                                    modifier = Modifier.size(48.dp), // Slightly larger for visibility
+                                    modifier = Modifier.size(48.dp),
                                     contentScale = ContentScale.Fit
                                 )
                             }

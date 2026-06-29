@@ -26,7 +26,6 @@ import com.ivarna.nativecode.core.data.Distro
 import com.ivarna.nativecode.core.data.DistroComponent
 import com.ivarna.nativecode.core.utils.StateManager
 import com.ivarna.nativecode.ui.components.GlassScaffold
-import com.ivarna.nativecode.ui.theme.FluxAccentCyan
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeChild
 import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
@@ -293,7 +292,7 @@ fun AiToolCard(
                     modifier = Modifier
                         .size(52.dp)
                         .clip(RoundedCornerShape(14.dp))
-                        .background(Color.Black.copy(alpha = 0.3f)),
+                        .background(MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f)),
                     contentAlignment = Alignment.Center
                 ) {
                     if (tool.iconRes != null) {
@@ -344,7 +343,7 @@ fun AiToolCard(
                     Box(
                         modifier = Modifier
                             .background(
-                                Color(0xFF1B5E20).copy(alpha = 0.5f),
+                                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f),
                                 RoundedCornerShape(8.dp)
                             )
                             .padding(horizontal = 8.dp, vertical = 4.dp)
@@ -353,14 +352,14 @@ fun AiToolCard(
                             Icon(
                                 Icons.Default.CheckCircle,
                                 contentDescription = null,
-                                tint = Color(0xFF81C784),
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
                                 modifier = Modifier.size(12.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
                                 "Installed",
                                 fontSize = 10.sp,
-                                color = Color(0xFF81C784),
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
                                 fontWeight = FontWeight.Bold
                             )
                         }
@@ -403,7 +402,7 @@ fun AiToolCard(
                     contentColor = if (isInstalled)
                         MaterialTheme.colorScheme.onSurface
                     else
-                        Color.White
+                        MaterialTheme.colorScheme.onPrimary
                 ),
                 shape = RoundedCornerShape(12.dp),
                 elevation = ButtonDefaults.buttonElevation(0.dp)
