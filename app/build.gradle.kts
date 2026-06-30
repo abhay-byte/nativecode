@@ -18,12 +18,15 @@ android {
         applicationId = "com.ivarna.nativecode"
         minSdk = 26
         targetSdk = 36
-        versionCode = 8
-        versionName = "1.6"
+        versionCode = 9
+        versionName = "1.7"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
             useSupportLibrary = true
+        }
+        ndk {
+            abiFilters += setOf("arm64-v8a")
         }
     }
 
@@ -31,6 +34,10 @@ android {
         // Disable PNG crunching for reproducible builds
         @Suppress("UnstableApiUsage")
         ignoreAssetsPattern = "!.svn:!.git:.*:!CVS:!thumbs.db:!picasa.ini:!*.scc:*~"
+        // AAPT automatically decompresses .gz files; noCompress keeps the
+        // original bytes intact so GzipCompressorInputStream can read them.
+        @Suppress("UnstableApiUsage")
+        noCompress += listOf("gz", "tar", "xz")
     }
 
     // Disable dependency metadata block for F-Droid
@@ -47,6 +54,7 @@ android {
             }
         }
         release {
+            signingConfig = signingConfigs.getByName("debug")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
@@ -74,6 +82,11 @@ android {
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
+        }
+        jniLibs {
+            // Keep native libs uncompressed so the OS can mmap/execute them.
+            useLegacyPackaging = true
+            pickFirsts += listOf("libproot.so", "libproot_loader.so", "libtalloc.so", "libandroid-shmem.so")
         }
     }
 }
@@ -104,7 +117,10 @@ dependencies {
     
     // Networking
     implementation(libs.okhttp)
-    
+
+    // Archive extraction for rootfs
+    implementation(libs.commons.compress)
+
     // Encrypted storage for API keys
     implementation(libs.androidx.security.crypto)
     

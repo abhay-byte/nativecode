@@ -19,5 +19,9 @@ This folder contains the technical documentation for the Android Linux Container
     *   Phased implementation plan (Foundation -> Bridge -> Distro Management).
     *   Advanced features strategy (Hardware Acceleration, Audio forwarding).
 
+*   **[Embedded Linux Runtime + In-App X11](embedded_linux_runtime.md)**
+    *   Design for running proot/proroot and an X11-only display server inside NativeCode itself.
+    *   Migration path away from the Termux + Termux:X11 orchestrator model.
+
 *   **[Problem Statement](problem_statement.md)**
     *   Original vision, capabilities, and top 15 use cases.

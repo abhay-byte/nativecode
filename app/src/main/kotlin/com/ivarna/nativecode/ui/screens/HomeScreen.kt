@@ -72,6 +72,7 @@ fun HomeScreen(
     onNavigateToInstall: (Distro) -> Unit,
     onNavigateToSettings: (Distro) -> Unit,
     onNavigateToSettingsScreen: () -> Unit,
+    onNavigateToEmbeddedRuntime: () -> Unit = {},
     onLaunchTool: (InstalledTool, String) -> Unit,
     onInstallComponent: (DistroComponent, Map<String, String>) -> Unit
 ) {
@@ -223,6 +224,7 @@ fun HomeScreen(
                             }
                         }
                     }
+
                     IconButton(onClick = onNavigateToSettingsScreen) {
                         Icon(Icons.Default.Settings, contentDescription = "Settings", tint = MaterialTheme.colorScheme.onSurface)
                     }
@@ -251,6 +253,12 @@ fun HomeScreen(
                     onStop = { val runningType = StateManager.getGuiRunningType(context, debianDistro.id); val intent = if (runningType == "kde") TermuxIntentFactory.buildStopKdeGuiIntent(debianDistro.id) else TermuxIntentFactory.buildStopGuiIntent(debianDistro.id); onStartService(intent); StateManager.setGuiRunning(context, debianDistro.id, false); StateManager.setGuiRunningType(context, debianDistro.id, "") },
                     onOpenX11 = { val intent = context.packageManager.getLaunchIntentForPackage("com.termux.x11"); if (intent != null) context.startActivity(intent) },
                     onSettings = { onNavigateToSettings(debianDistro) }
+                )
+            }
+
+            item {
+                AlpineRuntimeCard(
+                    onOpenTerminal = onNavigateToEmbeddedRuntime
                 )
             }
 
@@ -517,6 +525,133 @@ fun DebianHeroCard(distro: Distro, isInstalled: Boolean, isGuiRunning: Boolean, 
                         Button(onClick = onStop, modifier = Modifier.weight(1f).height(48.dp), colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.errorContainer, contentColor = MaterialTheme.colorScheme.error), shape = RoundedCornerShape(14.dp), border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.3f))) { Text("Stop", fontWeight = FontWeight.Bold) }
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+fun AlpineRuntimeCard(onOpenTerminal: () -> Unit) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    // Check if rootfs has already been extracted
+    val rootfsReady = remember {
+        java.io.File(context.filesDir, "rootfs/bin/busybox").exists()
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(28.dp))
+            .background(
+                Brush.linearGradient(
+                    colors = listOf(
+                        Color(0xFF5C6BC0).copy(alpha = 0.12f),
+                        Color.Transparent
+                    )
+                )
+            )
+            .border(
+                1.dp,
+                Brush.verticalGradient(
+                    listOf(
+                        Color(0xFF5C6BC0).copy(alpha = 0.35f),
+                        Color.Transparent
+                    )
+                ),
+                RoundedCornerShape(28.dp)
+            )
+            .padding(24.dp)
+    ) {
+        Column {
+            // Header row
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(64.dp)
+                        .clip(RoundedCornerShape(18.dp))
+                        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.4f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Image(
+                        painter = painterResource(id = R.drawable.distro_alpine),
+                        contentDescription = null,
+                        modifier = Modifier.size(42.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(16.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        "Alpine Linux",
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        "Embedded Proot Runtime",
+                        fontSize = 12.sp,
+                        color = Color(0xFF5C6BC0),
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    if (rootfsReady) Color(0xFF4CAF50)
+                                    else MaterialTheme.colorScheme.tertiary
+                                )
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            if (rootfsReady) "Rootfs Ready" else "Not Extracted",
+                            fontSize = 13.sp,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // Info chips
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf("No Root", "apk pkgs", "glibc-free").forEach { label ->
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color(0xFF5C6BC0).copy(alpha = 0.1f))
+                            .border(1.dp, Color(0xFF5C6BC0).copy(alpha = 0.25f), RoundedCornerShape(8.dp))
+                            .padding(horizontal = 10.dp, vertical = 4.dp)
+                    ) {
+                        Text(label, fontSize = 11.sp, color = Color(0xFF5C6BC0), fontWeight = FontWeight.SemiBold)
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // Action button
+            Button(
+                onClick = onOpenTerminal,
+                modifier = Modifier.fillMaxWidth().height(52.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFF5C6BC0)
+                ),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Icon(
+                    Icons.Default.Terminal,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    if (rootfsReady) "Open Terminal" else "Open & Extract",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp
+                )
             }
         }
     }
