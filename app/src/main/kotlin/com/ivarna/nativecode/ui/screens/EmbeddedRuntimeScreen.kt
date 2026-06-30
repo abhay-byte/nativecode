@@ -3,7 +3,7 @@ package com.ivarna.nativecode.ui.screens
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
@@ -210,7 +210,7 @@ fun EmbeddedRuntimeScreen(onBack: () -> Unit) {
                             .fillMaxSize()
                             .padding(horizontal = 8.dp, vertical = 8.dp)
                     ) {
-                        items(output, key = { it.hashCode() }) { line ->
+                        itemsIndexed(output, key = { i, _ -> i }) { _, line ->
                             TerminalLineRow(line)
                         }
                     }
