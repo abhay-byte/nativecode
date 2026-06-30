@@ -127,6 +127,7 @@ fun EmbeddedRuntimeScreen(onBack: () -> Unit) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .imePadding()
         ) {
             Row(
                 modifier = Modifier
