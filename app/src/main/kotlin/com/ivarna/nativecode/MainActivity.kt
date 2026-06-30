@@ -45,6 +45,7 @@ enum class Screen {
     INSTALL_WIZARD,
     DISTRO_SETTINGS,
     EMBEDDED_RUNTIME,
+    EMBEDDED_RUNTIME_DEBIAN,
 }
 
 class MainActivity : ComponentActivity() {
@@ -342,6 +343,9 @@ class MainActivity : ComponentActivity() {
                 val onNavigateToEmbeddedRuntime: () -> Unit = {
                     currentScreen = Screen.EMBEDDED_RUNTIME
                 }
+                val onNavigateToDebianRuntime: () -> Unit = {
+                    currentScreen = Screen.EMBEDDED_RUNTIME_DEBIAN
+                }
 
                 val onInstallComponentStub: (com.ivarna.nativecode.core.data.DistroComponent, Map<String, String>) -> Unit = { component, extraEnv ->
                     val distroId = selectedDistro?.id ?: "debian"
@@ -396,6 +400,7 @@ class MainActivity : ComponentActivity() {
                             onNavigateToSettings = onNavigateToDistroSettings,
                             onNavigateToSettingsScreen = { currentScreen = Screen.SETTINGS },
                             onNavigateToEmbeddedRuntime = onNavigateToEmbeddedRuntime,
+                            onNavigateToDebianRuntime = onNavigateToDebianRuntime,
                             onInstallComponent = onInstallComponentStub,
                             onLaunchTool = { tool, path ->
                                 val intent = when (tool.type) {
@@ -537,6 +542,12 @@ class MainActivity : ComponentActivity() {
                     Screen.EMBEDDED_RUNTIME -> {
                         com.ivarna.nativecode.ui.screens.EmbeddedRuntimeScreen(
                             onBack = { currentScreen = Screen.HOME }
+                        )
+                    }
+                    Screen.EMBEDDED_RUNTIME_DEBIAN -> {
+                        com.ivarna.nativecode.ui.screens.EmbeddedRuntimeScreen(
+                            onBack = { currentScreen = Screen.HOME },
+                            distro = com.ivarna.nativecode.core.runtime.Distro.Debian
                         )
                     }
                 }

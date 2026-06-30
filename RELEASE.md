@@ -1,20 +1,29 @@
-# v1.7.1 — Hotfix: Blank terminal
+# v1.7.3 — LazyColumn key crash
 
-v1.7 shipped the embedded Alpine terminal with an xterm.js WebView, but the WebView rendered a blank dark canvas on device. The page loaded and xterm.js initialized, but the canvas never painted output.
+v1.7.2 crashed when two terminal lines had the same text:
+
+```
+FATAL EXCEPTION: main
+java.lang.IllegalArgumentException: Key "108068241" was already used.
+  If you are using LazyColumn/Row please make sure you provide a
+  unique key for each item.
+  at androidx.compose.ui.layout.LayoutNodeSubcompositionsState
+     .subcompose
+```
+
+`items(output, key = { it.hashCode() })` collided as soon as the shell
+produced a duplicate line (a re-printed prompt, a blank line, an
+output line repeated by a long-running command). Compose recycled
+the slot, hit the duplicate key, threw, and the app got kicked to
+the launcher mid-setup.
 
 ## Fix
-Replace the WebView/xterm.js implementation with a pure-Compose terminal (same pattern as SimonSchubert/Kai):
-
-- `core/runtime/TerminalLine.kt` — `Command` / `Output` / `Error` sealed interface
-- `core/runtime/AnsiParser.kt` — CSI SGR → `AnnotatedString` with 8/16/256-color support
-- `ShellSession.kt` rewritten — `BufferedReader.readLine()` per stream, atomic cancel, EOF-safe
-- `EmbeddedRuntimeScreen.kt` rewritten — `LazyColumn` of `Text` lines + `TextField` input
-
-Drops ~3.5 MB of assets (xterm.min.js, xterm.min.css, JetBrainsMono Nerd Font).
+`itemsIndexed(output, key = { i, _ -> i })` — list index, guaranteed
+unique. Two same-text lines now sit in distinct rows instead of
+colliding.
 
 ## Commits
-- `3d17f6c` fix(terminal): replace xterm.js webview with compose-native terminal (Kai pattern)
-- `47518e1` chore: bump to v1.7.1 (versionCode 10)
+- `b8ae478` fix(terminal): unique LazyColumn key — was crashing on duplicate lines
 
 ## Install
 ```bash

@@ -73,6 +73,7 @@ fun HomeScreen(
     onNavigateToSettings: (Distro) -> Unit,
     onNavigateToSettingsScreen: () -> Unit,
     onNavigateToEmbeddedRuntime: () -> Unit = {},
+    onNavigateToDebianRuntime: () -> Unit = {},
     onLaunchTool: (InstalledTool, String) -> Unit,
     onInstallComponent: (DistroComponent, Map<String, String>) -> Unit
 ) {
@@ -259,6 +260,12 @@ fun HomeScreen(
             item {
                 AlpineRuntimeCard(
                     onOpenTerminal = onNavigateToEmbeddedRuntime
+                )
+            }
+
+            item {
+                DebianRuntimeCard(
+                    onOpenTerminal = onNavigateToDebianRuntime
                 )
             }
 
@@ -646,9 +653,132 @@ fun AlpineRuntimeCard(onOpenTerminal: () -> Unit) {
                     contentDescription = null,
                     modifier = Modifier.size(18.dp)
                 )
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(Modifier.width(8.dp))
                 Text(
                     if (rootfsReady) "Open Terminal" else "Open & Extract",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun DebianRuntimeCard(onOpenTerminal: () -> Unit) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val rootfsReady = remember {
+        java.io.File(context.filesDir, "rootfs-debian/usr/bin/sudo").exists()
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(28.dp))
+            .background(
+                Brush.linearGradient(
+                    colors = listOf(
+                        Color(0xFFA07050).copy(alpha = 0.12f),
+                        Color.Transparent
+                    )
+                )
+            )
+            .border(
+                1.dp,
+                Brush.verticalGradient(
+                    listOf(
+                        Color(0xFFA07050).copy(alpha = 0.35f),
+                        Color.Transparent
+                    )
+                ),
+                RoundedCornerShape(28.dp)
+            )
+            .padding(24.dp)
+    ) {
+        Column {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(64.dp)
+                        .clip(RoundedCornerShape(18.dp))
+                        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.4f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Image(
+                        painter = painterResource(id = R.drawable.distro_debian),
+                        contentDescription = null,
+                        modifier = Modifier.size(42.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(16.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        "Debian GNU/Linux",
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        "Proot Runtime · user: flux",
+                        fontSize = 12.sp,
+                        color = Color(0xFFA07050),
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    if (rootfsReady) Color(0xFF4CAF50)
+                                    else MaterialTheme.colorScheme.tertiary
+                                )
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            if (rootfsReady) "Rootfs Ready" else "Tap to download (~25 MB)",
+                            fontSize = 13.sp,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf("apt pkgs", "user: flux", "no password").forEach { label ->
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color(0xFFA07050).copy(alpha = 0.1f))
+                            .border(1.dp, Color(0xFFA07050).copy(alpha = 0.25f), RoundedCornerShape(8.dp))
+                            .padding(horizontal = 10.dp, vertical = 4.dp)
+                    ) {
+                        Text(label, fontSize = 11.sp, color = Color(0xFFA07050), fontWeight = FontWeight.SemiBold)
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            Button(
+                onClick = onOpenTerminal,
+                modifier = Modifier.fillMaxWidth().height(52.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFFA07050)
+                ),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Icon(
+                    Icons.Default.Terminal,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    if (rootfsReady) "Open Terminal" else "Open & Bootstrap",
                     fontWeight = FontWeight.Bold,
                     fontSize = 15.sp
                 )
