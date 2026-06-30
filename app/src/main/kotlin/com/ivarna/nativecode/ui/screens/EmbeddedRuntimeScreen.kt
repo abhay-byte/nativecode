@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ivarna.nativecode.core.runtime.parseAnsi
 import com.ivarna.nativecode.core.runtime.EmbeddedRuntime
+import com.ivarna.nativecode.core.runtime.Distro
 import com.ivarna.nativecode.core.runtime.ShellSession
 import com.ivarna.nativecode.core.runtime.TerminalLine
 import kotlinx.coroutines.Dispatchers
@@ -46,23 +47,23 @@ private const val MAX_OUTPUT_LINES = 500
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun EmbeddedRuntimeScreen(onBack: () -> Unit) {
+fun EmbeddedRuntimeScreen(onBack: () -> Unit, distro: Distro = Distro.Alpine) {
     val context = LocalContext.current
-    val runtime = remember { EmbeddedRuntime(context) }
-    val session = remember { ShellSession(runtime) }
+    val runtime = remember(distro) { EmbeddedRuntime(context, distro) }
+    val session = remember(distro) { ShellSession(runtime) }
     val scope = rememberCoroutineScope()
 
     var isReady by remember { mutableStateOf(false) }
-    var statusMessage by remember { mutableStateOf("Initializing rootfs...") }
+    var statusMessage by remember { mutableStateOf("Initializing ${distro.displayName}...") }
     var isRunning by remember { mutableStateOf(false) }
     var inputText by remember { mutableStateOf("") }
     val output = remember { mutableStateListOf<TerminalLine>() }
     val listState = rememberLazyListState()
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(distro) {
         val result = withContext(Dispatchers.IO) { runtime.ensureRootfs() }
         if (result.isSuccess) {
-            statusMessage = "Starting terminal session..."
+            statusMessage = "Starting ${distro.displayName} session..."
             val started = session.start()
             if (started) {
                 isReady = true
@@ -104,12 +105,12 @@ fun EmbeddedRuntimeScreen(onBack: () -> Unit) {
 
     Scaffold(
         topBar = {
-            TopAppBar(
+                TopAppBar(
                 title = {
                     Column {
-                        Text("Alpine Linux 3.20", style = MaterialTheme.typography.titleMedium)
+                        Text(distro.displayName, style = MaterialTheme.typography.titleMedium)
                         Text(
-                            "Embedded Proot Runtime",
+                            if (distro == Distro.Debian) "Proot Runtime · user: flux" else "Embedded Proot Runtime",
                             style = MaterialTheme.typography.labelSmall,
                             color = Color(0xFF5C6BC0)
                         )
@@ -138,12 +139,26 @@ fun EmbeddedRuntimeScreen(onBack: () -> Unit) {
                 AssistChip(
                     onClick = {
                         if (isReady) {
-                            val script = "sh /tmp/setup_alpine_embedded.sh"
-                            output.add(TerminalLine.Command(script))
-                            session.sendInput(script)
+                            // Each distro has its own bootstrap script shipped as an asset.
+                            // We tell the user how to run it inside the proot so the screen
+                            // stays the same: type the command, the script streams its output.
+                            val cmd = when (distro) {
+                                Distro.Alpine -> "sh /data/data/com.ivarna.nativecode/files/${Distro.Alpine.setupScriptName}"
+                                Distro.Debian  -> "sh /data/data/com.ivarna.nativecode/files/${Distro.Debian.setupScriptName}"
+                            }
+                            output.add(TerminalLine.Command(cmd))
+                            session.sendInput(cmd)
                         }
                     },
-                    label = { Text("Setup Alpine", fontSize = 12.sp) },
+                    label = {
+                        Text(
+                            when (distro) {
+                                Distro.Alpine -> "Setup Alpine"
+                                Distro.Debian  -> "Setup Debian"
+                            },
+                            fontSize = 12.sp
+                        )
+                    },
                     enabled = isReady,
                     leadingIcon = { Icon(Icons.Default.Build, null, Modifier.size(16.dp)) },
                     colors = AssistChipDefaults.assistChipColors(

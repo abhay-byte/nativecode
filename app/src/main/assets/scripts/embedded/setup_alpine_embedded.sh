@@ -1,5 +1,11 @@
 #!/bin/sh
 # Alpine Linux 3.20 Embedded Proot Setup Script
+# Flags:
+#   --no-cache          — skip local apk cache commit (avoids the rename(.apk.new → .apk)
+#                         hardlink error inside proot bind-mounts)
+#   --force-overwrite   — overwrite files from other packages (e.g. busybox-utils) without
+#                         aborting the whole transaction
+#   --no-progress       — keep terminal output compact
 echo "[✓] Alpine Linux 3.20 embedded proot detected"
 
 echo "[*] Updating package index..."
@@ -11,28 +17,28 @@ fi
 echo "[✓] Package index updated"
 
 echo "[*] Installing bash + coreutils..."
-apk add --no-progress bash coreutils 2>&1
+apk add --no-cache --force-overwrite --no-progress bash coreutils 2>&1
 
 echo "[*] Installing nano..."
-apk add --no-progress nano 2>&1
+apk add --no-cache --force-overwrite --no-progress nano 2>&1
 
 echo "[*] Installing network tools..."
-apk add --no-progress curl wget 2>&1
+apk add --no-cache --force-overwrite --no-progress curl wget 2>&1
 
 echo "[*] Installing git..."
-apk add --no-progress git 2>&1
+apk add --no-cache --force-overwrite --no-progress git 2>&1
 
 echo "[*] Installing htop..."
-apk add --no-progress procps htop 2>&1
+apk add --no-cache --force-overwrite --no-progress procps htop 2>&1
 
 echo "[*] Installing build tools..."
-apk add --no-progress build-base make cmake 2>&1
+apk add --no-cache --force-overwrite --no-progress build-base make cmake 2>&1
 
 echo "[*] Installing Python 3..."
-apk add --no-progress python3 py3-pip 2>&1
+apk add --no-cache --force-overwrite --no-progress python3 py3-pip 2>&1
 
 echo "[*] Installing Node.js..."
-apk add --no-progress nodejs npm 2>&1
+apk add --no-cache --force-overwrite --no-progress nodejs npm 2>&1
 
 echo "[*] Setting up environment..."
 mkdir -p /root /home
