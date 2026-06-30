@@ -44,6 +44,7 @@ enum class Screen {
     ROOT_ACCESS,
     INSTALL_WIZARD,
     DISTRO_SETTINGS,
+    EMBEDDED_RUNTIME,
 }
 
 class MainActivity : ComponentActivity() {
@@ -288,7 +289,8 @@ class MainActivity : ComponentActivity() {
 
             val darkTheme = themePrefs.isDarkTheme(context)
             NativeCodeTheme(darkTheme = darkTheme) {
-                val onboardingComplete = StateManager.isOnboardingComplete(this@MainActivity)
+                // Onboarding temporarily disabled.
+                val onboardingComplete = true
                 
                 // Permission State (Lifted for Settings and Home access)
                 val permissionState = rememberPermissionState(
@@ -297,7 +299,7 @@ class MainActivity : ComponentActivity() {
 
                 // Navigation state
                 var currentScreen by remember { 
-                    mutableStateOf(if (onboardingComplete) Screen.HOME else Screen.ONBOARDING) 
+                    mutableStateOf(Screen.HOME)
                 }
                 
                 // Selected Distro for Wizard/Settings
@@ -336,6 +338,9 @@ class MainActivity : ComponentActivity() {
                 val onNavigateToDistroSettings: (com.ivarna.nativecode.core.data.Distro) -> Unit = { distro ->
                     selectedDistro = distro
                     currentScreen = Screen.DISTRO_SETTINGS
+                }
+                val onNavigateToEmbeddedRuntime: () -> Unit = {
+                    currentScreen = Screen.EMBEDDED_RUNTIME
                 }
 
                 val onInstallComponentStub: (com.ivarna.nativecode.core.data.DistroComponent, Map<String, String>) -> Unit = { component, extraEnv ->
@@ -390,6 +395,7 @@ class MainActivity : ComponentActivity() {
                             onNavigateToInstall = onNavigateToInstall,
                             onNavigateToSettings = onNavigateToDistroSettings,
                             onNavigateToSettingsScreen = { currentScreen = Screen.SETTINGS },
+                            onNavigateToEmbeddedRuntime = onNavigateToEmbeddedRuntime,
                             onInstallComponent = onInstallComponentStub,
                             onLaunchTool = { tool, path ->
                                 val intent = when (tool.type) {
@@ -527,6 +533,11 @@ class MainActivity : ComponentActivity() {
                                 hazeState = hazeState
                             )
                         } else currentScreen = Screen.HOME
+                    }
+                    Screen.EMBEDDED_RUNTIME -> {
+                        com.ivarna.nativecode.ui.screens.EmbeddedRuntimeScreen(
+                            onBack = { currentScreen = Screen.HOME }
+                        )
                     }
                 }
             }
