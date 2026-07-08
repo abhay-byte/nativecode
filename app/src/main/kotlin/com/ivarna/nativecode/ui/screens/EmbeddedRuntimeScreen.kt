@@ -1,9 +1,11 @@
 package com.ivarna.nativecode.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
@@ -12,6 +14,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Build
+import androidx.compose.material.icons.filled.DesktopWindows
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.*
@@ -36,6 +40,7 @@ import kotlinx.coroutines.withContext
 import androidx.compose.runtime.snapshotFlow
 import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.collectLatest
+import java.io.File
 
 private val TerminalBg = Color(0xFF0D1117)
 private val TerminalFg = Color(0xFFD4D4D4)
@@ -133,6 +138,7 @@ fun EmbeddedRuntimeScreen(onBack: () -> Unit, distro: Distro = Distro.Alpine) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState())
                     .padding(horizontal = 12.dp, vertical = 4.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
@@ -192,6 +198,60 @@ fun EmbeddedRuntimeScreen(onBack: () -> Unit, distro: Distro = Distro.Alpine) {
                         borderColor = Color(0xFF4CAF50).copy(alpha = 0.3f)
                     )
                 )
+
+                if (distro == Distro.Alpine) {
+                    AssistChip(
+                        onClick = {
+                            if (isReady) {
+                                scope.launch(Dispatchers.IO) {
+                                    val scriptFile = File(context.filesDir, "setup_alpine_family.sh")
+                                    if (!scriptFile.exists()) {
+                                        context.assets.open("scripts/common/setup_alpine_family.sh").use { input ->
+                                            scriptFile.outputStream().use { output -> input.copyTo(output) }
+                                        }
+                                        scriptFile.setExecutable(true)
+                                    }
+                                }
+                                val cmd = "sh /data/data/com.ivarna.nativecode/files/setup_alpine_family.sh"
+                                output.add(TerminalLine.Command(cmd))
+                                session.sendInput(cmd)
+                            }
+                        },
+                        label = { Text("Setup XFCE4", fontSize = 12.sp) },
+                        enabled = isReady,
+                        leadingIcon = { Icon(Icons.Default.DesktopWindows, null, Modifier.size(16.dp)) },
+                        colors = AssistChipDefaults.assistChipColors(
+                            containerColor = Color(0xFFFF7043).copy(alpha = 0.12f),
+                            labelColor = Color(0xFFFF7043),
+                            leadingIconContentColor = Color(0xFFFF7043),
+                        ),
+                        border = AssistChipDefaults.assistChipBorder(
+                            enabled = true,
+                            borderColor = Color(0xFFFF7043).copy(alpha = 0.3f)
+                        )
+                    )
+                    AssistChip(
+                        onClick = {
+                            if (isReady) {
+                                val cmd = "export DISPLAY=:0 PULSE_SERVER=tcp:127.0.0.1 XDG_RUNTIME_DIR=/tmp && xfconf-query -c xfwm4 -p /general/use_compositing -s false 2>/dev/null && dbus-launch --exit-with-session startxfce4"
+                                output.add(TerminalLine.Command(cmd))
+                                session.sendInput(cmd)
+                            }
+                        },
+                        label = { Text("Start GUI", fontSize = 12.sp) },
+                        enabled = isReady,
+                        leadingIcon = { Icon(Icons.Default.PlayArrow, null, Modifier.size(16.dp)) },
+                        colors = AssistChipDefaults.assistChipColors(
+                            containerColor = Color(0xFF4CAF50).copy(alpha = 0.08f),
+                            labelColor = Color(0xFF4CAF50),
+                            leadingIconContentColor = Color(0xFF4CAF50),
+                        ),
+                        border = AssistChipDefaults.assistChipBorder(
+                            enabled = true,
+                            borderColor = Color(0xFF4CAF50).copy(alpha = 0.3f)
+                        )
+                    )
+                }
             }
 
             if (!isReady) {

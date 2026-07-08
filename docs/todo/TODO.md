@@ -99,6 +99,107 @@ Tracking pending tasks for the FluxLinux → NativeCode upgrade.
 
 ---
 
+## 🔲 Feature: Embedded Terminal & In-App X11 Display
+
+> **Goal:** Replace shell-script IPC (Termux external app → X11 external app) with direct
+> library-level embedding. Terminal icon in top bar opens an in-app Termux terminal session.
+> When a display server launches inside that session, the X11 output renders in-app via `LorieView`.
+
+### Phase A: Library Module Wiring
+
+- [ ] Add `:modules:termux-x11:app` to `settings.gradle.kts` as a library (change `com.android.application` to `com.android.library`, remove `applicationId`, strip signing/splits config)
+  - Key classes needed: `LorieView`, `CmdEntryPoint`, `InputEventSender`
+  - Has native `.so` via CMake — keep `externalNativeBuild` block, add `aar` output
+- [ ] Verify `:modules:termux-app:terminal-emulator` and `:modules:termux-app:terminal-view` already included in `settings.gradle.kts` (they are — confirmed)
+- [ ] Add dependencies to `app/build.gradle.kts`:
+  ```kotlin
+  implementation(project(":modules:termux-app:terminal-emulator"))
+  implementation(project(":modules:termux-app:terminal-view"))
+  implementation(project(":modules:termux-x11:app"))
+  ```
+- [ ] Resolve compile SDK mismatch: termux-x11 uses `compileSdkVersion 34`, app uses `36` — bump x11 module to 36 or force `compileSdk` override
+- [ ] Resolve Java version mismatch: termux-x11 uses `VERSION_1_9`, app uses `VERSION_17` — align to 17
+- [ ] Handle AIDL: `buildFeatures.aidl true` required in x11 module (already set)
+
+### Phase B: Embedded Terminal UI
+
+- [ ] Create `EmbeddedTerminalView.kt` — Compose wrapper around `TerminalView` (from `terminal-view`)
+  - Hosts `TerminalView` inside `AndroidView { ... }`
+  - Connects `TerminalSession` (from `terminal-emulator`) backed by `/system/bin/sh` or Termux binary
+  - Implements `TerminalViewClient` for key/text input forwarding
+  - Full keyboard input passthrough via `TerminalView`
+- [ ] Create `TerminalSessionManager.kt`
+  - `startSession(execPath, args, env, cwd)`: spawns `TerminalSession`
+  - Detects when a display server starts (watch for `DISPLAY=:0` or socket `/tmp/.X11-unix/X0`)
+  - Exposes `StateFlow<Boolean>` `isX11Active` for X11 trigger
+- [ ] Add terminal icon (e.g. `Icons.Default.Terminal` or custom SVG) to top app bar in `MainActivity.kt` / `HomeScreen.kt`
+  - On click: show `EmbeddedTerminalView` in bottom sheet or full-screen overlay
+  - Persist terminal session across navigation (ViewModel scoped to Activity)
+
+### Phase C: In-App X11 Display (`LorieView`)
+
+- [ ] Create `X11DisplayScreen.kt` — Compose screen embedding `LorieView`
+  - `AndroidView { LorieView(context) }` sized to fill screen
+  - `LorieView` connects via Unix domain socket (same process as `CmdEntryPoint`)
+- [ ] Wire `CmdEntryPoint` startup:
+  - On `isX11Active == true`, call `CmdEntryPoint.start()` (or equivalent) to initialize the X server socket
+  - Pass `LorieView`'s `Surface` to native renderer
+- [ ] Auto-navigate to `X11DisplayScreen` when `isX11Active` transitions `false → true`
+  - Show overlay/transition: "Display server detected — switching to X11 view"
+  - Back button returns to terminal view (session stays alive)
+- [ ] Input routing: forward touch/keyboard events from `LorieView` via `InputEventSender`
+
+### Phase D: Navigation & UI Integration
+
+- [ ] Add `Screen.TERMINAL` and `Screen.X11_DISPLAY` to navigation graph
+- [ ] Terminal icon in top bar: visible on all main screens
+- [ ] State machine: `IDLE → TERMINAL_OPEN → X11_ACTIVE → BACK_TO_TERMINAL → IDLE`
+- [ ] Handle lifecycle: pause/resume `LorieView` surface on activity lifecycle events
+- [ ] Handle rotation: `LorieView` resize via `SurfaceHolder.Callback`
+
+### Phase E: Polish & Testing
+
+- [ ] Extra keys bar (reuse `ExtraKeysView` from `termux-x11`) below terminal for Ctrl/Tab/Esc/Arrow
+- [ ] Font size adjustment in terminal (pinch-to-zoom)
+- [ ] Copy/paste from terminal selection
+- [ ] Graceful fallback if X11 socket not found after 30s
+- [ ] Build, install, verify on device: terminal opens, `startx` or `DISPLAY=:0 xclock` renders in-app
+
+---
+
+## 📝 Architecture: Embedded Terminal + X11
+
+```
+┌──────────────────────────────────────────┐
+│              Top Bar                     │
+│   [≡ NativeCode]          [⬛ Terminal]  │  ← terminal icon
+└──────────────────────────────────────────┘
+         │ click
+         ▼
+┌──────────────────────────────────────────┐
+│         EmbeddedTerminalView             │
+│   TerminalView (terminal-view lib)       │
+│   TerminalSession (terminal-emulator)    │
+│   → user runs: startx / Xvfb / etc.     │
+└──────────────┬───────────────────────────┘
+               │ detects DISPLAY=:0 / socket
+               ▼
+┌──────────────────────────────────────────┐
+│         X11DisplayScreen                 │
+│   LorieView (termux-x11 lib)             │
+│   CmdEntryPoint (native X server)        │
+│   InputEventSender (touch/kbd → X11)    │
+└──────────────────────────────────────────┘
+```
+
+**Key classes:**
+- `TerminalSession` — `modules/termux-app/terminal-emulator` — process lifecycle + PTY
+- `TerminalView` — `modules/termux-app/terminal-view` — renders terminal to canvas
+- `LorieView` — `modules/termux-x11/app` — SurfaceView rendering X11 frames via OpenGL ES
+- `CmdEntryPoint` — `modules/termux-x11/app` — JNI bridge starting the native X server
+
+---
+
 ## 📝 Notes
 
 **Codex CLI invocation inside distro:**

@@ -17,6 +17,13 @@ import java.nio.file.LinkOption
 import java.nio.file.Paths
 
 /**
+ * Alpine Linux version constants — single source of truth.
+ * Update these to pin a different Alpine release.
+ */
+private const val ALPINE_VERSION = "3.20.0"
+private const val ALPINE_BRANCH = "v3.20"
+
+/**
  * In-app Linux userspace runtime backed by an embedded proot binary.
  *
  * Supports Alpine (the original, bundled in `assets/rootfs/alpine-minirootfs.tar.gz`)
@@ -25,7 +32,7 @@ import java.nio.file.Paths
  * same proot binary, loader, and libtalloc.
  */
 enum class Distro(val rootfsDirName: String, val displayName: String) {
-    Alpine("rootfs", "Alpine Linux 3.20"),
+    Alpine("rootfs", "Alpine Linux $ALPINE_VERSION"),
     Debian("rootfs-debian", "Debian 13 (trixie)");
 
     val scriptAssetPath: String
@@ -58,6 +65,12 @@ class EmbeddedRuntime(
     private val tallocCopy: File
         get() = File(context.filesDir, "libtalloc.so.2")
 
+    private val memfdShimCopy: File
+        get() = File(context.filesDir, "libmemfd_shim.so")
+
+    val prootPath: String
+        get() = proot.absolutePath
+
     private val proot: File
         get() = File(nativeLibDir, "libproot.so")
 
@@ -73,9 +86,11 @@ class EmbeddedRuntime(
         rootfsDir.resolve("usr/bin/sudo").exists()
 
     suspend fun ensureRootfs(): Result<File> = withContext(Dispatchers.IO) {
+        ensureEmbeddedScripts()
         // Fast path: any of these markers means the rootfs is usable.
         if (isRootfsReady()) {
             ensureLibtalloc()
+            ensureMemfdShim()
             return@withContext Result.success(rootfsDir)
         }
 
@@ -84,6 +99,7 @@ class EmbeddedRuntime(
             tmpDir.mkdirs()
             homeDir.mkdirs()
             ensureLibtalloc()
+            ensureMemfdShim()
 
             when (distro) {
                 Distro.Alpine -> extractAlpineRootfs()
@@ -188,8 +204,8 @@ class EmbeddedRuntime(
     private fun writeAlpineRepositories(rootfs: File) {
         val apkDir = File(rootfs, "etc/apk").also { it.mkdirs() }
         File(apkDir, "repositories").writeText(
-            "https://dl-cdn.alpinelinux.org/alpine/v3.20/main\n" +
-            "https://dl-cdn.alpinelinux.org/alpine/v3.20/community\n"
+            "https://dl-cdn.alpinelinux.org/alpine/$ALPINE_BRANCH/main\n" +
+            "https://dl-cdn.alpinelinux.org/alpine/$ALPINE_BRANCH/community\n"
         )
     }
 
@@ -199,6 +215,54 @@ class EmbeddedRuntime(
         if (source.exists()) {
             try { source.copyTo(tallocCopy, overwrite = true) }
             catch (e: Exception) { Log.w(TAG, "Could not copy libtalloc: ${e.message}") }
+        }
+    }
+
+    private fun ensureMemfdShim() {
+        val source = File(nativeLibDir, "libmemfd_shim.so")
+        if (source.exists()) {
+            try {
+                source.copyTo(memfdShimCopy, overwrite = true)
+                memfdShimCopy.setReadable(true, false)
+                memfdShimCopy.setExecutable(true, false)
+            }
+            catch (e: Exception) { Log.w(TAG, "Could not copy libmemfd_shim: ${e.message}") }
+        }
+    }
+
+    private val extraEmbeddedScripts = listOf(
+        "start_gui_alpine.sh"
+    )
+
+    private fun ensureEmbeddedScripts() {
+        for (distroVal in Distro.values()) {
+            val scriptFile = File(context.filesDir, distroVal.setupScriptName)
+            try {
+                context.assets.open(distroVal.scriptAssetPath).use { input ->
+                    scriptFile.outputStream().use { output ->
+                        input.copyTo(output)
+                    }
+                }
+                scriptFile.setExecutable(true, false)
+                Log.d(TAG, "Copied script ${distroVal.setupScriptName} to ${scriptFile.absolutePath}")
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to copy script ${distroVal.setupScriptName}: ${e.message}", e)
+            }
+        }
+        for (scriptName in extraEmbeddedScripts) {
+            val scriptFile = File(context.filesDir, scriptName)
+            if (scriptFile.exists()) continue
+            try {
+                context.assets.open("scripts/embedded/$scriptName").use { input ->
+                    scriptFile.outputStream().use { output ->
+                        input.copyTo(output)
+                    }
+                }
+                scriptFile.setExecutable(true, false)
+                Log.d(TAG, "Copied extra script $scriptName to ${scriptFile.absolutePath}")
+            } catch (e: Exception) {
+                Log.w(TAG, "Could not copy extra script $scriptName: ${e.message}")
+            }
         }
     }
 
@@ -249,11 +313,22 @@ class EmbeddedRuntime(
             add(proot.absolutePath)
             add("--rootfs=${rootfsDir.absolutePath}")
             add("--bind=/dev"); add("--bind=/proc"); add("--bind=/sys")
+            add("--bind=/sdcard/Android/data/com.ivarna.nativecode/files:/sdcard")
             add("--bind=${homeDir.absolutePath}:/root")
             if (distro == Distro.Debian) {
                 add("--bind=${homeDir.absolutePath}:/home/flux")
             }
             add("--bind=${tmpDir.absolutePath}:/tmp")
+            // Bind Termux:X11 socket so XFCE4 can connect to DISPLAY=:0
+            val x11Socket = "/data/data/com.termux/files/usr/tmp/.X11-unix"
+            val x11Target = "${rootfsDir.absolutePath}/tmp/.X11-unix"
+            if (File(x11Socket).exists()) {
+                add("--bind=$x11Socket:$x11Target")
+            }
+            val parentFile = context.filesDir.parentFile
+            if (parentFile != null && parentFile.exists()) {
+                add("--bind=${parentFile.absolutePath}:/data/data/${context.packageName}")
+            }
             add("-0")
             add("-w"); add(if (distro == Distro.Debian) "/home/flux" else "/root")
             addAll(guestCommand)

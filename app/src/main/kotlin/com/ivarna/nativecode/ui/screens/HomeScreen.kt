@@ -72,8 +72,7 @@ fun HomeScreen(
     onNavigateToInstall: (Distro) -> Unit,
     onNavigateToSettings: (Distro) -> Unit,
     onNavigateToSettingsScreen: () -> Unit,
-    onNavigateToEmbeddedRuntime: () -> Unit = {},
-    onNavigateToDebianRuntime: () -> Unit = {},
+    onNavigateToTerminal: () -> Unit = {},
     onLaunchTool: (InstalledTool, String) -> Unit,
     onInstallComponent: (DistroComponent, Map<String, String>) -> Unit
 ) {
@@ -226,6 +225,9 @@ fun HomeScreen(
                         }
                     }
 
+                    IconButton(onClick = onNavigateToTerminal) {
+                        Icon(Icons.Default.Terminal, contentDescription = "Terminal", tint = MaterialTheme.colorScheme.onSurface)
+                    }
                     IconButton(onClick = onNavigateToSettingsScreen) {
                         Icon(Icons.Default.Settings, contentDescription = "Settings", tint = MaterialTheme.colorScheme.onSurface)
                     }
@@ -248,7 +250,7 @@ fun HomeScreen(
                     guiRunningType = StateManager.getGuiRunningType(context, debianDistro.id),
                     kdeInstalled = StateManager.isComponentInstalled(context, debianDistro.id, "kde_plasma"),
                     onInstall = { onNavigateToInstall(debianDistro) },
-                    onLaunchCli = { if (permissionState.status.isGranted) onStartService(TermuxIntentFactory.buildLaunchCliIntent(debianDistro.id)) else permissionState.launchPermissionRequest() },
+                    onLaunchCli = { onNavigateToTerminal() },
                     onLaunchXfce = { if (permissionState.status.isGranted) { onStartService(TermuxIntentFactory.buildLaunchGuiIntent(debianDistro.id)); StateManager.setGuiRunning(context, debianDistro.id, true); StateManager.setGuiRunningType(context, debianDistro.id, "xfce4"); val intent = context.packageManager.getLaunchIntentForPackage("com.termux.x11"); if (intent != null) { context.startActivity(intent); com.ivarna.nativecode.core.utils.TermuxX11Preferences.applyToTermux(context) } } else permissionState.launchPermissionRequest() },
                     onLaunchKde = { if (permissionState.status.isGranted) { onStartService(TermuxIntentFactory.buildLaunchKdeGuiIntent(context, debianDistro.id)); StateManager.setGuiRunning(context, debianDistro.id, true); StateManager.setGuiRunningType(context, debianDistro.id, "kde"); val intent = context.packageManager.getLaunchIntentForPackage("com.termux.x11"); if (intent != null) { context.startActivity(intent); com.ivarna.nativecode.core.utils.TermuxX11Preferences.applyToTermux(context) } } else permissionState.launchPermissionRequest() },
                     onStop = { val runningType = StateManager.getGuiRunningType(context, debianDistro.id); val intent = if (runningType == "kde") TermuxIntentFactory.buildStopKdeGuiIntent(debianDistro.id) else TermuxIntentFactory.buildStopGuiIntent(debianDistro.id); onStartService(intent); StateManager.setGuiRunning(context, debianDistro.id, false); StateManager.setGuiRunningType(context, debianDistro.id, "") },
@@ -257,17 +259,6 @@ fun HomeScreen(
                 )
             }
 
-            item {
-                AlpineRuntimeCard(
-                    onOpenTerminal = onNavigateToEmbeddedRuntime
-                )
-            }
-
-            item {
-                DebianRuntimeCard(
-                    onOpenTerminal = onNavigateToDebianRuntime
-                )
-            }
 
             if (isInstalled) {
                 item {

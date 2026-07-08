@@ -7,7 +7,7 @@ This document outlines the classification of all Linux distributions tracked by 
 | **Debian** | `debian` | **DEBIAN** | APT | FIXED | ✅ **Implemented** |
 | **Ubuntu** | `ubuntu` | **DEBIAN** | APT | FIXED | ✅ **Implemented** |
 | **Adélie Linux** | `adelie` | ALPINE-like | APK | FIXED | 🚧 Planned |
-| **Alpine Linux** | `alpine` | ALPINE | APK | FIXED | 🚧 Planned |
+| **Alpine Linux** | `alpine` | ALPINE | APK | FIXED | ✅ **Implemented** |
 | **Arch Linux** | `arch` | ARCH | PACMAN | ROLLING | 🚧 Planned |
 | **Artix Linux** | `artix` | ARCH | PACMAN | ROLLING | 🚧 Planned |
 | **BackBox** | `backbox` | DEBIAN | APT | FIXED | 🚧 Planned |
@@ -32,8 +32,7 @@ This document outlines the classification of all Linux distributions tracked by 
 
 ## Implementation Roadmap
 
-Currently, the `DEBIAN` family logic is fully implemented with a reusable `setup_debian_family.sh` script. Future work will involve creating similar generic setup scripts for other major families:
+Currently, the `DEBIAN` family logic is fully implemented with a reusable `setup_debian_family.sh` script, and the `ALPINE` family is implemented with `setup_alpine_family.sh` (Alpine, Adélie). Alpine Linux 3.20.0 is the **default embedded proot runtime** — bundled in `assets/rootfs/alpine-minirootfs.tar.gz`. Future work will involve creating similar generic setup scripts for other major families:
 
 1.  **ARCH Family**: `setup_arch_family.sh` (Arch, Artix, Manjaro)
-2.  **ALPINE Family**: `setup_alpine_family.sh` (Alpine, Adélie)
-3.  **FEDORA/REDHAT Family**: `setup_fedora_family.sh` (Fedora, Rocky, CentOS)
+2.  **FEDORA/REDHAT Family**: `setup_fedora_family.sh` (Fedora, Rocky, CentOS)

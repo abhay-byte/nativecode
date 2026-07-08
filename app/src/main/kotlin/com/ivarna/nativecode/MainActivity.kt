@@ -44,8 +44,11 @@ enum class Screen {
     ROOT_ACCESS,
     INSTALL_WIZARD,
     DISTRO_SETTINGS,
-    EMBEDDED_RUNTIME,
-    EMBEDDED_RUNTIME_DEBIAN,
+    // Embedded terminal (TerminalView library) + in-app X11 display
+    EMBEDDED_TERMINAL,
+    X11_DISPLAY,
+    // Termux bootstrap terminal (real Termux packages, no root)
+    TERMUX_TERMINAL,
 }
 
 class MainActivity : ComponentActivity() {
@@ -340,12 +343,7 @@ class MainActivity : ComponentActivity() {
                     selectedDistro = distro
                     currentScreen = Screen.DISTRO_SETTINGS
                 }
-                val onNavigateToEmbeddedRuntime: () -> Unit = {
-                    currentScreen = Screen.EMBEDDED_RUNTIME
-                }
-                val onNavigateToDebianRuntime: () -> Unit = {
-                    currentScreen = Screen.EMBEDDED_RUNTIME_DEBIAN
-                }
+
 
                 val onInstallComponentStub: (com.ivarna.nativecode.core.data.DistroComponent, Map<String, String>) -> Unit = { component, extraEnv ->
                     val distroId = selectedDistro?.id ?: "debian"
@@ -399,8 +397,7 @@ class MainActivity : ComponentActivity() {
                             onNavigateToInstall = onNavigateToInstall,
                             onNavigateToSettings = onNavigateToDistroSettings,
                             onNavigateToSettingsScreen = { currentScreen = Screen.SETTINGS },
-                            onNavigateToEmbeddedRuntime = onNavigateToEmbeddedRuntime,
-                            onNavigateToDebianRuntime = onNavigateToDebianRuntime,
+                            onNavigateToTerminal = { currentScreen = Screen.TERMUX_TERMINAL },
                             onInstallComponent = onInstallComponentStub,
                             onLaunchTool = { tool, path ->
                                 val intent = when (tool.type) {
@@ -539,15 +536,21 @@ class MainActivity : ComponentActivity() {
                             )
                         } else currentScreen = Screen.HOME
                     }
-                    Screen.EMBEDDED_RUNTIME -> {
-                        com.ivarna.nativecode.ui.screens.EmbeddedRuntimeScreen(
+
+                    Screen.EMBEDDED_TERMINAL -> {
+                        com.ivarna.nativecode.ui.screens.EmbeddedTerminalScreen(
+                            onBack = { currentScreen = Screen.HOME },
+                            onX11Active = { currentScreen = Screen.X11_DISPLAY }
+                        )
+                    }
+                    Screen.TERMUX_TERMINAL -> {
+                        com.ivarna.nativecode.ui.screens.TermuxTerminalScreen(
                             onBack = { currentScreen = Screen.HOME }
                         )
                     }
-                    Screen.EMBEDDED_RUNTIME_DEBIAN -> {
-                        com.ivarna.nativecode.ui.screens.EmbeddedRuntimeScreen(
-                            onBack = { currentScreen = Screen.HOME },
-                            distro = com.ivarna.nativecode.core.runtime.Distro.Debian
+                    Screen.X11_DISPLAY -> {
+                        com.ivarna.nativecode.ui.screens.X11DisplayScreen(
+                            onBack = { currentScreen = Screen.EMBEDDED_TERMINAL }
                         )
                     }
                 }

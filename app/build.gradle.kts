@@ -127,6 +127,15 @@ dependencies {
     // JSON Serialization
     implementation(libs.kotlinx.serialization.json)
 
+    // Embedded Termux runtime (terminal emulator, shell sessions)
+    implementation(project(":modules:termux-app:termux-shared"))
+    implementation(project(":modules:termux-app:terminal-emulator"))
+    implementation(project(":modules:termux-app:terminal-view"))
+
+    // Termux X11 in-app display (LorieView, CmdEntryPoint)
+    implementation(project(":modules:termux-x11:app"))
+
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

@@ -147,6 +147,18 @@ object DistroRepository {
         )
     )
 
+    // Shared Components for Alpine-based distros
+    private val alpineComponents = listOf(
+        DistroComponent(
+            id = "alpine_xfce4_desktop",
+            name = "XFCE4 Desktop",
+            description = "Installs XFCE4 Desktop Environment and TigerVNC.",
+            scriptName = "common/setup_alpine_family.sh",
+            sizeEstimate = "200 MB",
+            isMandatory = true
+        )
+    )
+
     val supportedDistros = listOf(
         // Currently Available
         Distro(
@@ -205,9 +217,11 @@ object DistroRepository {
             description = "Security-oriented, lightweight Linux distribution.",
             color = Color(0xFF0D597F),
             iconRes = R.drawable.distro_alpine,
-            comingSoon = true,
-            prootSupported = true, // frozen version
-            chrootSupported = true
+            comingSoon = false,
+            prootSupported = true,
+            chrootSupported = true,
+            configuration = SupportedDistro.ALPINE,
+            components = alpineComponents
         ),
         Distro(
             id = "archlinux",

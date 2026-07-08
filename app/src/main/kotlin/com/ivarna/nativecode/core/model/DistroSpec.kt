@@ -82,5 +82,12 @@ enum class SupportedDistro(
         family = DistroFamily.TERMUX,
         packageManager = PackageManager.PKG,
         releaseType = ReleaseType.ROLLING
+    ),
+
+    ALPINE(
+        id = "alpine",
+        family = DistroFamily.ALPINE,
+        packageManager = PackageManager.APK,
+        releaseType = ReleaseType.ROLLING
     )
 }

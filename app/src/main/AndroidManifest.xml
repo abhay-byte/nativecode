@@ -3,13 +3,16 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <!-- Critical for NativeCode -> Termux Communication -->
-    <!-- Critical for NativeCode -> Termux Communication -->
     <uses-permission android:name="com.termux.permission.RUN_COMMAND" />
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
-    
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <permission
+        android:name="com.ivarna.nativecode.permission.RUN_COMMAND"
+        android:protectionLevel="dangerous"
+        android:label="Run commands in FluxLinux terminal" />
 
     <queries>
         <package android:name="com.termux" />
@@ -25,7 +28,8 @@
         android:roundIcon="@mipmap/ic_launcher"
         android:supportsRtl="true"
         android:theme="@style/Theme.NativeCode"
-        tools:targetApi="31">
+        tools:targetApi="35"
+        tools:replace="android:allowBackup,android:roundIcon,android:theme">
 
         <provider
             android:name="androidx.core.content.FileProvider"
@@ -40,7 +44,7 @@
             android:name=".MainActivity"
             android:exported="true"
             android:launchMode="singleTask"
-            android:windowSoftInputMode="adjustResize"
+            android:windowSoftInputMode="adjustPan"
             android:theme="@style/Theme.NativeCode">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -60,7 +64,38 @@
                 <data android:mimeType="image/*" />
             </intent-filter>
         </activity>
-        
+
+        <service
+            android:name="com.ivarna.nativecode.core.termux.TerminalService"
+            android:exported="false" />
+
+        <service
+            android:name="com.ivarna.nativecode.core.termux.CliService"
+            android:exported="true"
+            android:permission="com.ivarna.nativecode.permission.RUN_COMMAND">
+            <intent-filter>
+                <action android:name="com.ivarna.nativecode.RUN_COMMAND" />
+            </intent-filter>
+        </service>
+
+        <!-- Termux X11 in-app display: merged from termux-x11 library module -->
+        <activity
+            android:name="com.termux.x11.MainActivity"
+            android:exported="false"
+            android:launchMode="singleTask"
+            android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen"
+            android:configChanges="keyboard|keyboardHidden|orientation|screenSize|smallestScreenSize|screenLayout|uiMode"
+            android:windowSoftInputMode="adjustPan"
+            tools:replace="android:launchMode,android:windowSoftInputMode,android:configChanges,android:exported" />
+
+
+        <activity
+            android:name="com.termux.x11.LoriePreferences"
+            android:exported="false"
+            android:theme="@style/Theme.NativeCode"
+            tools:replace="android:theme,android:exported" />
+
     </application>
 
 </manifest>
+

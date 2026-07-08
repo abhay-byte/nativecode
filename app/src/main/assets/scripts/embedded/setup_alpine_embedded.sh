@@ -1,4 +1,5 @@
 #!/bin/sh
+export LD_PRELOAD=/data/data/com.ivarna.nativecode/files/libmemfd_shim.so
 # Alpine Linux 3.20 Embedded Proot Setup Script
 # Flags:
 #   --no-cache          — skip local apk cache commit (avoids the rename(.apk.new → .apk)
@@ -47,6 +48,7 @@ export HOME=/root
 export PATH=/usr/local/sbin:/usr/local/bin:/sbin:/usr/sbin:/bin:/usr/bin
 export TERM=xterm-256color
 export LANG=C.UTF-8
+export LD_PRELOAD=/data/data/com.ivarna.nativecode/files/libmemfd_shim.so
 EOF
 
 echo ""

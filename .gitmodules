@@ -1,0 +1,6 @@
+[submodule "modules/termux-app"]
+	path = modules/termux-app
+	url = https://github.com/termux/termux-app.git
+[submodule "modules/termux-x11"]
+	path = modules/termux-x11
+	url = https://github.com/termux/termux-x11.git
