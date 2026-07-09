@@ -86,19 +86,14 @@ object TermuxBootstrapManager {
             it.setWritable(true, false)
             it.setExecutable(true, false)
         }
+        // apt cache dir — mapped to /data/data/com.termux/cache inside proot
+        val cache = File(context.filesDir, "termux-cache").also {
+            File(it, "apt/archives/partial").mkdirs()
+            it.setReadable(true, false)
+            it.setWritable(true, false)
+            it.setExecutable(true, false)
+        }
 
-        // linker64 trick for SELinux bypass on Android 10+:
-        //   execvp(cmd="/system/bin/linker64", argv=[args[0], args[1], ...])
-        //
-        // linker64 interprets argv[0] as the .so to load, then calls its main()
-        // with argv shifted by 1. So proot's main() receives:
-        //   argv[0] = args[1]  (should be proot's own path)
-        //   argv[1] = args[2]  (should be --rootfs=/)
-        //   etc.
-        //
-        // Therefore we need args[0]=proot_path (for linker64 to load)
-        //                    args[1]=proot_path (for proot's argv[0] = self-path)
-        //                    args[2..] = proot flags
         return arrayOf(
             proot,                          // args[0]: linker64 loads this .so
             proot,                          // args[1]: proot sees this as argv[0] (its own path)
@@ -108,6 +103,7 @@ object TermuxBootstrapManager {
             "--bind=${prefix.absolutePath}:$CANONICAL_TERMUX_PREFIX",
             "--bind=${home.absolutePath}:/data/data/com.termux/files/home",
             "--bind=${tmp.absolutePath}:$CANONICAL_TERMUX_PREFIX/tmp",
+            "--bind=${cache.absolutePath}:/data/data/com.termux/cache",
             "-w", "/data/data/com.termux/files/home",
             "$CANONICAL_TERMUX_PREFIX/bin/bash",
         )
@@ -179,7 +175,35 @@ object TermuxBootstrapManager {
                 java.nio.file.Files.createSymbolicLink(tallocLink.toPath(), java.nio.file.Paths.get("libtalloc.so.2"))
             } catch (_: Exception) {}
         }
+
+        // Fix missing APT dirs + keyring for already-installed bootstraps.
+        // These may be absent if the bootstrap was extracted by an older version.
+        ensureAptKeyring(context)
     }
+
+    /**
+     * Creates missing APT directories and downloads the Termux signing key if absent.
+     * Safe to call on every launch — skips download if key file already exists and is non-empty.
+     */
+    private fun ensureAptKeyring(context: Context) {
+        val prefix = prefixDir(context)
+        listOf("etc/apt/apt.conf.d", "etc/apt/trusted.gpg.d", "etc/apt/preferences.d").forEach {
+            File(prefix, it).apply { mkdirs(); setReadable(true, false); setExecutable(true, false) }
+        }
+        val keyFile = File(prefix, "etc/apt/trusted.gpg.d/termux-keyring.gpg")
+        if (keyFile.exists() && keyFile.length() > 0) return
+        try {
+            // Copy bundled binary keyring from assets (key ID: 5A897D96E57CF20C)
+            context.assets.open("termux-keyring.gpg").use { inp ->
+                FileOutputStream(keyFile).use { inp.copyTo(it) }
+            }
+            keyFile.setReadable(true, false)
+            Log.i(TAG, "Termux keyring installed from assets: ${keyFile.length()} bytes")
+        } catch (e: Exception) {
+            Log.w(TAG, "Keyring install failed", e)
+        }
+    }
+
 
     // -------------------------------------------------------------------------
     // Bootstrap download + extraction
@@ -366,8 +390,35 @@ object TermuxBootstrapManager {
         Log.i(TAG, "Created $symlinksCreated symlinks")
 
         // Ensure required dirs exist
-        listOf("usr/var", "usr/tmp", "home").forEach {
-            File(prefix, it).mkdirs()
+        listOf("usr/var", "usr/tmp", "home",
+               "etc/apt/apt.conf.d", "etc/apt/trusted.gpg.d").forEach {
+            File(prefix, it).apply { mkdirs(); setReadable(true, false); setExecutable(true, false) }
+        }
+
+        // Download Termux signing key if missing (key ID: 5A897D96E57CF20C).
+        // The bootstrap zip doesn't include the keyring package; fetch it from packages.termux.dev.
+        val keyFile = File(prefix, "etc/apt/trusted.gpg.d/termux-keyring.gpg")
+        if (!keyFile.exists() || keyFile.length() == 0L) {
+            try {
+                val keyUrl = "https://packages.termux.dev/apt/termux-main/dists/stable/InRelease"
+                // Prefer the binary keyring from the termux-keyring package on GitHub
+                val gpgUrl = "https://raw.githubusercontent.com/termux/termux-app/master/app/src/main/res/raw/termux_keyring.gpg"
+                val conn = java.net.URL(gpgUrl).openConnection() as java.net.HttpURLConnection
+                conn.connectTimeout = 15_000
+                conn.readTimeout    = 15_000
+                conn.instanceFollowRedirects = true
+                conn.connect()
+                if (conn.responseCode == 200) {
+                    conn.inputStream.use { inp -> FileOutputStream(keyFile).use { inp.copyTo(it) } }
+                    keyFile.setReadable(true, false)
+                    Log.i(TAG, "Downloaded Termux keyring: ${keyFile.length()} bytes")
+                } else {
+                    Log.w(TAG, "Keyring download: HTTP ${conn.responseCode}")
+                }
+                conn.disconnect()
+            } catch (e: Exception) {
+                Log.w(TAG, "Keyring download failed (pkg may show NO_PUBKEY)", e)
+            }
         }
 
         // Create RUNPATH symlink: Termux ELFs have RUNPATH /data/data/com.termux/files/usr/lib
