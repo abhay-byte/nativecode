@@ -187,7 +187,7 @@ object TermuxBootstrapManager {
      */
     private fun ensureAptKeyring(context: Context) {
         val prefix = prefixDir(context)
-        listOf("etc/apt/apt.conf.d", "etc/apt/trusted.gpg.d", "etc/apt/preferences.d").forEach {
+        listOf("etc/apt/apt.conf.d", "etc/apt/trusted.gpg.d", "etc/apt/preferences.d", "var/log/apt").forEach {
             File(prefix, it).apply { mkdirs(); setReadable(true, false); setExecutable(true, false) }
         }
         val keyFile = File(prefix, "etc/apt/trusted.gpg.d/termux-keyring.gpg")
