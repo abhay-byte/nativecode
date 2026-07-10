@@ -78,22 +78,33 @@
             </intent-filter>
         </service>
 
-        <!-- Termux X11 in-app display: merged from termux-x11 library module -->
+        <!-- Termux X11 in-app display only — NOT a second launcher icon.
+             Library module ships MAIN/LAUNCHER; tools:node=replace drops that so
+             only com.ivarna.nativecode.MainActivity appears on the app list.
+             (Two LAUNCHER activities in one package = two icons; uninstall removes both.) -->
         <activity
             android:name="com.termux.x11.MainActivity"
             android:exported="false"
-            android:launchMode="singleTask"
-            android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen"
+            android:launchMode="singleTop"
+            android:taskAffinity=""
+            android:theme="@style/Theme.AppCompat.NoActionBar"
             android:configChanges="keyboard|keyboardHidden|orientation|screenSize|smallestScreenSize|screenLayout|uiMode"
             android:windowSoftInputMode="adjustPan"
-            tools:replace="android:launchMode,android:windowSoftInputMode,android:configChanges,android:exported" />
+            android:excludeFromRecents="false"
+            android:supportsPictureInPicture="true"
+            android:resizeableActivity="true"
+            tools:node="replace" />
 
-
+        <!-- Preferences: open only in-app; no MAIN/LAUNCHER -->
         <activity
             android:name="com.termux.x11.LoriePreferences"
             android:exported="false"
-            android:theme="@style/Theme.NativeCode"
-            tools:replace="android:theme,android:exported" />
+            android:launchMode="standard"
+            android:taskAffinity=""
+            android:theme="@style/Theme.AppCompat.DayNight.DarkActionBar"
+            android:parentActivityName="com.termux.x11.MainActivity"
+            android:excludeFromRecents="true"
+            tools:node="replace" />
 
     </application>
 

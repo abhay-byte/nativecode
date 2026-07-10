@@ -26,6 +26,16 @@
 # Keep app classes
 -keep class com.ivarna.nativecode.** { *; }
 
+# Termux-X11 CmdEntryPoint uses hidden platform APIs via reflection / framework stubs
+-keep class com.termux.x11.** { *; }
+-dontwarn android.app.ActivityThread
+-dontwarn android.app.ContextImpl
+-dontwarn android.app.IActivityManager
+-dontwarn android.content.IIntentReceiver
+-dontwarn android.content.IIntentReceiver$Stub
+-dontwarn android.content.IIntentSender
+-dontwarn android.content.pm.IPackageManager
+
 # Ignore missing compile-time annotations
 -dontwarn com.google.errorprone.annotations.**
 -dontwarn com.google.crypto.tink.**

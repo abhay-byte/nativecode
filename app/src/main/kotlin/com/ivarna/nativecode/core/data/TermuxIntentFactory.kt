@@ -65,6 +65,7 @@ object TermuxIntentFactory {
             echo "$installScriptB64" | base64 -d > ${'$'}HOME/flux_install.sh
             chmod +x ${'$'}HOME/flux_install.sh
             
+            # start_gui from assets (keep in sync with ScriptManager.LAUNCH_SCRIPTS)
             echo "$guiScriptB64" | base64 -d > ${'$'}HOME/start_gui.sh
             chmod +x ${'$'}HOME/start_gui.sh
             
@@ -93,80 +94,6 @@ object TermuxIntentFactory {
         }
         
         val command = "bash $TERMUX_HOME_DIR/flux_install.sh $distroId \"$setupB64\""
-        return buildRunCommandIntent(command)
-    }
-
-    /**
-     * Uninstalls/Removes a specific distro.
-     */
-    fun buildUninstallIntent(distroId: String): Intent {
-        val callbackUrl = "nativecode://callback?result=success&name=distro_uninstall_$distroId"
-        
-        val command = when {
-            distroId == "termux" -> {
-                "pkg uninstall -y xfce4 xfce4-terminal tigervnc && echo 'NativeCode: Termux Native Desktop Removed.' && sleep 1 && am start -a android.intent.action.VIEW -d \"$callbackUrl\""
-            }
-            distroId == "debian13_chroot" -> {
-                // Chroot: Inline uninstall logic (unmount, remove, callback)
-                // This avoids dependency on pre-deployed script files
-                """
-                su -c '
-                DEBIANPATH="/data/local/tmp/chrootDebian13"
-                echo "Unmounting filesystems..."
-                for mnt in $(grep "${'$'}DEBIANPATH" /proc/mounts | awk "{print \${'$'}2}" | sort -r); do
-                    umount -l "${'$'}mnt" 2>/dev/null
-                done
-                echo "Removing chroot directory..."
-                rm -rf "${'$'}DEBIANPATH"
-                rm -f /data/local/tmp/start_debian13*.sh /data/local/tmp/enter_debian13.sh /data/local/tmp/run_debian13_root.sh /data/local/tmp/stop_debian13*.sh /data/local/tmp/uninstall_debian13.sh
-                echo "Chroot removed successfully!"
-                am start -a android.intent.action.VIEW -d "$callbackUrl"
-                '
-                """.trimIndent()
-            }
-            distroId == "debian_chroot" -> {
-                // Chroot: Inline uninstall logic
-                """
-                su -c '
-                DEBIANPATH="/data/local/tmp/chrootDebian"
-                echo "Unmounting filesystems..."
-                for mnt in $(grep "${'$'}DEBIANPATH" /proc/mounts | awk "{print \${'$'}2}" | sort -r); do
-                    umount -l "${'$'}mnt" 2>/dev/null
-                done
-                echo "Removing chroot directory..."
-                rm -rf "${'$'}DEBIANPATH"
-                rm -f /data/local/tmp/start_debian*.sh /data/local/tmp/enter_debian.sh /data/local/tmp/stop_debian*.sh /data/local/tmp/uninstall_debian*.sh
-                echo "Chroot removed successfully!"
-                am start -a android.intent.action.VIEW -d "$callbackUrl"
-                '
-                """.trimIndent()
-            }
-            distroId.contains("chroot") -> {
-                // Generic chroot fallback
-                "su -c \"rm -rf /data/local/tmp/chroot*\" && echo 'Chroot removed.' && am start -a android.intent.action.VIEW -d \"$callbackUrl\""
-            }
-            else -> {
-                // PRoot: Try proot-distro remove, retry once if it fails, then fallback to manual removal
-                """
-                echo "Attempting to remove $distroId..."
-                if proot-distro remove $distroId 2>/dev/null; then
-                    echo "NativeCode: $distroId Uninstalled."
-                else
-                    echo "First attempt failed, retrying..."
-                    sleep 1
-                    if proot-distro remove $distroId 2>/dev/null; then
-                        echo "NativeCode: $distroId Uninstalled."
-                    else
-                        echo "proot-distro command failed, using manual removal..."
-                        rm -rf ${'$'}PREFIX/var/lib/proot-distro/installed-rootfs/$distroId
-                        echo "NativeCode: $distroId manually removed."
-                    fi
-                fi
-                sleep 2
-                am start -a android.intent.action.VIEW -d "$callbackUrl"
-                """.trimIndent()
-            }
-        }
         return buildRunCommandIntent(command)
     }
 
@@ -773,80 +700,147 @@ object TermuxIntentFactory {
      * Runs a specific feature script inside the distro.
      * Uses Base64 injection to avoid quoting/escape issues.
      */
+    /**
+     * Shell command for component/feature install inside **internal** bootstrap terminal
+     * (or legacy external Termux). Prefer [buildRunFeatureScriptCommand] + internal terminal.
+     */
     fun buildRunFeatureScriptIntent(distroId: String, scriptContent: String, callbackName: String? = null): Intent {
+        return buildRunCommandIntent(
+            buildRunFeatureScriptCommand(distroId, scriptContent, callbackName),
+            runInBackground = false
+        )
+    }
+
+    /**
+     * Bash to install a feature script into proot/chroot. Safe for embedded Termux home.
+     * Ends with "✅ Installation complete!" on success for TermuxTerminalScreen markers.
+     */
+    fun buildRunFeatureScriptCommand(
+        distroId: String,
+        scriptContent: String,
+        callbackName: String? = null,
+        extraEnv: Map<String, String> = emptyMap(),
+    ): String {
         val safeScript = if (!scriptContent.endsWith("\n")) "$scriptContent\n" else scriptContent
-        val scriptB64 = android.util.Base64.encodeToString(safeScript.toByteArray(), android.util.Base64.NO_WRAP)
-        
-        // Callback command (run by Termux)
+        val envBlock = if (extraEnv.isEmpty()) "" else {
+            extraEnv.entries.joinToString("\n") { "export ${it.key}=\"${it.value}\"" } + "\n"
+        }
+        val fullScript = envBlock + safeScript
+        val scriptB64 = android.util.Base64.encodeToString(fullScript.toByteArray(), android.util.Base64.NO_WRAP)
+
+        // Optional deep-link callback (legacy external Termux / queue)
         val callbackCmd = if (callbackName != null) {
-            "am start -a android.intent.action.VIEW -d \"nativecode://callback?result=success&name=$callbackName\""
+            """am start -a android.intent.action.VIEW -d "nativecode://callback?result=success&name=$callbackName" >/dev/null 2>&1 || true"""
         } else ""
-        
+
         if (distroId == "debian_chroot") {
-            // For Chroot, we must decode the script on the HOST (Android)
-            // Write to Termux's tmp directory since that's what gets mounted into the chroot
             val termuxTmp = "/data/data/com.termux/files/usr/tmp"
-            val innerCommand = """
+            return """
+                set -e
+                echo "NativeCode: Installing feature in chroot..."
                 su -c '
-                mkdir -p $termuxTmp;
-                echo "$scriptB64" | base64 -d > $termuxTmp/flux_feature.sh;
-                chmod +x $termuxTmp/flux_feature.sh;
-                busybox chroot /data/local/tmp/chrootDebian /bin/su - root -c "bash /tmp/flux_feature.sh";
-                rm -f $termuxTmp/flux_feature.sh;
-                ';
-                sleep 1; $callbackCmd
-            """.trimIndent().replace("\n", " ")
-            
-            return buildRunCommandIntent(innerCommand, runInBackground = false)
+                mkdir -p $termuxTmp
+                echo "$scriptB64" | base64 -d > $termuxTmp/flux_feature.sh
+                chmod +x $termuxTmp/flux_feature.sh
+                busybox chroot /data/local/tmp/chrootDebian /bin/su - root -c "bash /tmp/flux_feature.sh"
+                rm -f $termuxTmp/flux_feature.sh
+                '
+                $callbackCmd
+                echo -e "\n\033[1;32m✅ Installation complete!\033[0m"
+            """.trimIndent()
         }
 
         if (distroId == "debian13_chroot") {
-            // Debian 13 Chroot Feature Script
-            // Debian 13 Chroot Feature Script
-            // Uses generated helper for robustness, falls back to inline mounts if missing.
-            // Write to Termux's tmp directory since that's what gets mounted into the chroot
-            // This ensures the script is visible inside the chroot after /tmp is mounted
             val termuxTmp = "/data/data/com.termux/files/usr/tmp"
-            val innerCommand = """
+            return """
+                set -e
+                echo "NativeCode: Installing feature in Debian 13 chroot..."
                 su -c '
-                ROOT_RUNNER="/data/local/tmp/run_debian13_root.sh";
+                ROOT_RUNNER="/data/local/tmp/run_debian13_root.sh"
+                mkdir -p $termuxTmp
+                echo "$scriptB64" | base64 -d > $termuxTmp/flux_feature.sh
+                chmod +x $termuxTmp/flux_feature.sh
                 if [ -f "${'$'}ROOT_RUNNER" ]; then
-                    mkdir -p $termuxTmp;
-                    echo "$scriptB64" | base64 -d > $termuxTmp/flux_feature.sh;
-                    chmod +x $termuxTmp/flux_feature.sh;
-                    sh "${'$'}ROOT_RUNNER" "bash /tmp/flux_feature.sh";
-                    rm -f $termuxTmp/flux_feature.sh;
+                    sh "${'$'}ROOT_RUNNER" "bash /tmp/flux_feature.sh"
                 else
-                    mnt=/data/local/tmp/chrootDebian13;
-                    mkdir -p $termuxTmp;
-                    mount -o remount,dev,suid /data >/dev/null 2>&1;
-                    mount -t proc proc ${'$'}mnt/proc >/dev/null 2>&1;
-                    mount -t sysfs sysfs ${'$'}mnt/sys >/dev/null 2>&1;
-                    mount -o bind /dev ${'$'}mnt/dev >/dev/null 2>&1;
-                    mount -o bind /dev/pts ${'$'}mnt/dev/pts >/dev/null 2>&1;
-                    mkdir -p ${'$'}mnt/dev/shm;
-                    mount -t tmpfs -o size=512M tmpfs ${'$'}mnt/dev/shm >/dev/null 2>&1;
-                    mkdir -p ${'$'}mnt/tmp;
-                    mount --bind $termuxTmp ${'$'}mnt/tmp >/dev/null 2>&1;
-                    echo "$scriptB64" | base64 -d > $termuxTmp/flux_feature.sh;
-                    chmod +x $termuxTmp/flux_feature.sh;
-                    busybox chroot ${'$'}mnt /bin/su - root -c "bash /tmp/flux_feature.sh";
-                    rm -f $termuxTmp/flux_feature.sh;
-                fi;
-                ';
-                sleep 1; $callbackCmd
-            """.trimIndent().replace("\n", " ")
-            
-            return buildRunCommandIntent(innerCommand, runInBackground = false)
+                    mnt=/data/local/tmp/chrootDebian13
+                    mount -o remount,dev,suid /data >/dev/null 2>&1
+                    mount -t proc proc ${'$'}mnt/proc >/dev/null 2>&1
+                    mount -t sysfs sysfs ${'$'}mnt/sys >/dev/null 2>&1
+                    mount -o bind /dev ${'$'}mnt/dev >/dev/null 2>&1
+                    mount -o bind /dev/pts ${'$'}mnt/dev/pts >/dev/null 2>&1
+                    mkdir -p ${'$'}mnt/dev/shm ${'$'}mnt/tmp
+                    mount -t tmpfs -o size=512M tmpfs ${'$'}mnt/dev/shm >/dev/null 2>&1
+                    mount --bind $termuxTmp ${'$'}mnt/tmp >/dev/null 2>&1
+                    busybox chroot ${'$'}mnt /bin/su - root -c "bash /tmp/flux_feature.sh"
+                fi
+                rm -f $termuxTmp/flux_feature.sh
+                '
+                $callbackCmd
+                echo -e "\n\033[1;32m✅ Installation complete!\033[0m"
+            """.trimIndent()
         }
-        
-        // Command to run inside Termux (Proot):
-        // 1. Run script inside Proot
-        val innerCommand = "echo \"$scriptB64\" | base64 -d > /tmp/flux_feature.sh && bash /tmp/flux_feature.sh; rm -f /tmp/flux_feature.sh"
-        // 2. Append Callback to outer command (Termux runs this after Proot exits)
-        val command = "proot-distro login $distroId --shared-tmp -- bash -c '$innerCommand'; $callbackCmd"
-        
-        return buildRunCommandIntent(command, runInBackground = false) // Foreground to see progress
+
+        // PRoot (primary path for debian/ubuntu/etc. in NativeCode bootstrap)
+        return """
+            set -e
+            echo "NativeCode: Installing feature into $distroId..."
+            echo "$scriptB64" | base64 -d > ${'$'}HOME/flux_feature.sh
+            chmod +x ${'$'}HOME/flux_feature.sh
+            proot-distro login $distroId --shared-tmp -- /bin/bash -lc '
+              export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+              export DEBIAN_FRONTEND=noninteractive
+              bash /data/data/com.termux/files/home/flux_feature.sh
+            '
+            rm -f ${'$'}HOME/flux_feature.sh
+            $callbackCmd
+            echo -e "\n\033[1;32m✅ Installation complete!\033[0m"
+        """.trimIndent()
+    }
+
+    /** Uninstall shell for internal terminal (PRoot remove / chroot wipe). */
+    fun buildUninstallCommand(distroId: String): String {
+        return when {
+            distroId == "termux" -> {
+                "pkg uninstall -y xfce4 xfce4-terminal tigervnc; echo -e '\\n\\033[1;32m✅ Installation complete!\\033[0m'"
+            }
+            distroId.contains("chroot") -> {
+                val path = when (distroId) {
+                    "debian13_chroot" -> "/data/local/tmp/chrootDebian13"
+                    "debian_chroot" -> "/data/local/tmp/chrootDebian"
+                    else -> "/data/local/tmp/chroot*"
+                }
+                """
+                su -c '
+                echo "Unmounting and removing $path..."
+                for mnt in ${'$'}(grep "$path" /proc/mounts 2>/dev/null | awk "{print \${'$'}2}" | sort -r); do
+                  umount -l "${'$'}mnt" 2>/dev/null
+                done
+                rm -rf $path
+                echo "Chroot removed."
+                '
+                echo -e "\n\033[1;32m✅ Installation complete!\033[0m"
+                """.trimIndent()
+            }
+            else -> {
+                """
+                echo "Removing $distroId (proot-distro)..."
+                if proot-distro remove $distroId 2>/dev/null; then
+                  echo "Removed via proot-distro."
+                else
+                  echo "Fallback: manual rootfs delete..."
+                  rm -rf ${'$'}PREFIX/var/lib/proot-distro/installed-rootfs/$distroId
+                  rm -rf ${'$'}PREFIX/var/lib/proot-distro/containers/$distroId
+                  echo "Manual remove done."
+                fi
+                echo -e "\n\033[1;32m✅ Installation complete!\033[0m"
+                """.trimIndent()
+            }
+        }
+    }
+
+    fun buildUninstallIntent(distroId: String): Intent {
+        return buildRunCommandIntent(buildUninstallCommand(distroId), runInBackground = false)
     }
 
     /**

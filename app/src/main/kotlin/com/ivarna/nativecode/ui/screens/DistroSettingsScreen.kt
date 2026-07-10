@@ -54,6 +54,8 @@ fun DistroSettingsScreen(
     onReinstallDistro: () -> Unit,
     onNavigateToStart: (() -> Unit)? = null,
     onStartActivity: (android.content.Intent) -> Unit,
+    /** Open internal terminal (preferred over external Termux). */
+    onNavigateToTerminal: (command: String?) -> Unit = {},
     onLaunchXfce: (() -> Unit)? = null,
     onStopXfce: (() -> Unit)? = null,
     onLaunchKde: (() -> Unit)? = null,
@@ -449,9 +451,9 @@ fun DistroSettingsScreen(
                     Spacer(modifier = Modifier.height(12.dp))
                     Box(modifier = Modifier.background(Color.Black.copy(alpha=0.3f), RoundedCornerShape(8.dp)).padding(12.dp)) {
                         Column {
-                             Text("1. Click 'Proceed' to Copy Command", fontSize = 12.sp, color = MaterialTheme.colorScheme.secondary)
-                             Text("2. Open Termux -> Type 'su'", fontSize = 12.sp, color = MaterialTheme.colorScheme.secondary)
-                             Text("3. Paste & Run", fontSize = 12.sp, color = MaterialTheme.colorScheme.secondary)
+                             Text("1. Click 'Proceed' to run uninstall in the in-app terminal", fontSize = 12.sp, color = MaterialTheme.colorScheme.secondary)
+                             Text("2. Grant root (su) when prompted", fontSize = 12.sp, color = MaterialTheme.colorScheme.secondary)
+                             Text("3. Wait for ✅ complete", fontSize = 12.sp, color = MaterialTheme.colorScheme.secondary)
                         }
                     }
                 } else {
@@ -477,30 +479,22 @@ fun DistroSettingsScreen(
                     Button(
                         onClick = { 
                             if (isChroot) {
-                                // ... (Script generation logic) ...
-                                val scriptName = when(distro.id) {
-                                    "debian_chroot" -> "chroot/uninstall_debian_chroot.sh"
-                                    "debian13_chroot" -> "chroot/uninstall_debian13.sh"
-                                    else -> "chroot/uninstall_debian_chroot.sh"
-                                }
-                                
+                                // Run uninstall via internal terminal (su required)
                                 try {
-                                    val scriptManager = com.ivarna.nativecode.core.data.ScriptManager(context)
-                                    val scriptContent = scriptManager.getScriptContent(scriptName)
-                                    val command = com.ivarna.nativecode.core.data.TermuxIntentFactory.getSafeRootManualCommand(scriptContent, "uninstall_${distro.id}.sh")
-                                    
-                                    val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                                    val clip = android.content.ClipData.newPlainText("NativeCode Uninstall", command)
-                                    clipboard.setPrimaryClip(clip)
-                                    
-                                    val launchIntent = com.ivarna.nativecode.core.data.TermuxIntentFactory.buildOpenTermuxIntent(context)
-                                    if (launchIntent != null) {
-                                        // StateManager.setDistroInstalled(context, distro.id, false) // REMOVED: Wait for callback
-                                        onStartActivity(launchIntent)
-                                        onBack() 
-                                        android.widget.Toast.makeText(context, "Command Copied!", android.widget.Toast.LENGTH_LONG).show()
-                                    }
-                                } catch (e: Exception) {}
+                                    val cmd = com.ivarna.nativecode.core.data.TermuxIntentFactory
+                                        .buildUninstallCommand(distro.id)
+                                    onNavigateToTerminal(cmd)
+                                    onBack()
+                                    android.widget.Toast.makeText(
+                                        context,
+                                        "Opening internal terminal for uninstall…",
+                                        android.widget.Toast.LENGTH_SHORT
+                                    ).show()
+                                } catch (e: Exception) {
+                                    android.widget.Toast.makeText(
+                                        context, "Failed: ${e.message}", android.widget.Toast.LENGTH_LONG
+                                    ).show()
+                                }
                             } else {
                                 onUninstallDistro()
                             }

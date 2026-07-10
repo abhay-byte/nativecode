@@ -5,12 +5,18 @@ import android.view.KeyEvent
 import android.view.inputmethod.InputMethodManager
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -22,9 +28,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import com.ivarna.nativecode.core.termux.TerminalSessionHub
 import com.ivarna.nativecode.core.termux.TermuxBootstrapManager
 import com.ivarna.nativecode.core.termux.TermuxBootstrapManager.BootstrapState
 import com.termux.terminal.TerminalSession
@@ -33,50 +41,101 @@ import com.termux.view.TerminalView
 import com.termux.view.TerminalViewClient
 import kotlinx.coroutines.launch
 
-private val TermBg    = Color(0xFF0D1117)
-private val TermBar   = Color(0xFF161B22)
-private val TermFg    = Color(0xFFD4D4D4)
+private val TermBg = Color(0xFF0D1117)
+private val TermBar = Color(0xFF161B22)
+private val TermSide = Color(0xFF0D1117)
+private val TermFg = Color(0xFFD4D4D4)
+private val TermMuted = Color(0xFF8B949E)
 private val TermGreen = Color(0xFF3FB950)
-private val TermBlue  = Color(0xFF58A6FF)
+private val TermBlue = Color(0xFF58A6FF)
 private val TermAccent = Color(0xFF6E40C9)
+private val TermActive = Color(0xFF21262D)
+private val TermDanger = Color(0xFFFF7B72)
 
 /**
- * Full-screen terminal screen that runs a REAL Termux bootstrap environment.
+ * Multi-session Termux terminal host.
  *
- * On first launch: shows download UI (~10 MB Termux bootstrap zip).
- * After bootstrap: opens bash from the extracted prefix — full pkg/apt available.
- * No root required.
+ * Sidebar lists all live sessions (Termux shell, Debian proot, XFCE start_gui, …).
+ * Sessions live in [TerminalSessionHub] so leaving the screen does not kill them.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TermuxTerminalScreen(onBack: () -> Unit) {
+fun TermuxTerminalScreen(
+    onBack: () -> Unit,
+    initialCommand: String? = null,
+    installTitle: String = "Installing…",
+    totalSteps: Int = 1,
+    onInstallComplete: (() -> Unit)? = null,
+    /** Increment from host each time user navigates to open a new tab. */
+    openEpoch: Long = 0L,
+) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val drawerState = rememberDrawerState(DrawerValue.Closed)
 
-    // ── State machine ──────────────────────────────────────────────────────────
     var bootstrapReady by remember { mutableStateOf(TermuxBootstrapManager.isInstalled(context)) }
     var bootstrapState by remember { mutableStateOf<BootstrapState>(BootstrapState.NotInstalled) }
 
-    val termViewRef = remember { mutableStateOf<TerminalView?>(null) }
-    val sessionRef  = remember { mutableStateOf<TerminalSession?>(null) }
-    var ctrlDown    by remember { mutableStateOf(false) }
+    val tabs by TerminalSessionHub.tabs.collectAsState()
+    val activeId by TerminalSessionHub.activeId.collectAsState()
+    val activeTab = tabs.find { it.id == activeId } ?: tabs.lastOrNull()
 
-    // Session client
+    val termViewRef = remember { mutableStateOf<TerminalView?>(null) }
+    var ctrlDown by remember { mutableStateOf(false) }
+
+    var currentStep by remember { mutableStateOf(0) }
+    var currentStepName by remember { mutableStateOf("") }
+    var installDone by remember { mutableStateOf(false) }
+    var x11Opened by remember { mutableStateOf(false) }
+    val isInstalling = initialCommand != null && totalSteps > 0
+    val isGuiLaunch = initialCommand?.contains("start_gui") == true
+
+    // Track which openEpoch we already created a tab for
+    var lastOpenEpoch by remember { mutableStateOf(-1L) }
+
     val sessionClient = remember {
         object : TerminalSessionClient {
-            override fun onTextChanged(s: TerminalSession)   { termViewRef.value?.onScreenUpdated() }
-            override fun onTitleChanged(s: TerminalSession)  {}
-            override fun onSessionFinished(s: TerminalSession) { sessionRef.value = null }
+            override fun onTextChanged(s: TerminalSession) {
+                termViewRef.value?.onScreenUpdated()
+                try {
+                    val text = s.emulator?.screen?.transcriptText
+                        ?: s.emulator?.screen?.getTranscriptText()
+                        ?: return
+
+                    if (isInstalling) {
+                        val stepRegex = Regex("""\[STEP (\d+)\] (.+)""")
+                        stepRegex.findAll(text).lastOrNull()?.let { m ->
+                            currentStep = m.groupValues[1].toIntOrNull() ?: return@let
+                            currentStepName = m.groupValues[2].trim()
+                        }
+                        if (!installDone && text.contains("✅ Installation complete!")) {
+                            installDone = true
+                            onInstallComplete?.invoke()
+                        }
+                    }
+
+                    if (isGuiLaunch && !x11Opened && text.contains("X11 ready")) {
+                        x11Opened = true
+                        android.util.Log.i("TermuxTerminalScreen", "X11 ready — opening embedded display")
+                        com.ivarna.nativecode.core.termux.GuiSessionLauncher.openX11Activity(context)
+                    }
+                } catch (_: Exception) {}
+            }
+
+            override fun onTitleChanged(s: TerminalSession) {}
+            override fun onSessionFinished(s: TerminalSession) {
+                TerminalSessionHub.markFinished(s)
+            }
             override fun onCopyTextToClipboard(s: TerminalSession, text: String) {}
             override fun onPasteTextFromClipboard(s: TerminalSession) {}
             override fun onBell(s: TerminalSession) {}
             override fun onColorsChanged(s: TerminalSession) {}
             override fun onTerminalCursorStateChange(state: Boolean) {}
             override fun getTerminalCursorStyle(): Int? = null
-            override fun logError(tag: String, message: String)   { android.util.Log.e(tag, message) }
-            override fun logWarn(tag: String, message: String)    { android.util.Log.w(tag, message) }
-            override fun logInfo(tag: String, message: String)    { android.util.Log.i(tag, message) }
-            override fun logDebug(tag: String, message: String)   { android.util.Log.d(tag, message) }
+            override fun logError(tag: String, message: String) { android.util.Log.e(tag, message) }
+            override fun logWarn(tag: String, message: String) { android.util.Log.w(tag, message) }
+            override fun logInfo(tag: String, message: String) { android.util.Log.i(tag, message) }
+            override fun logDebug(tag: String, message: String) { android.util.Log.d(tag, message) }
             override fun logVerbose(tag: String, message: String) { android.util.Log.v(tag, message) }
             override fun logStackTraceWithMessage(tag: String, message: String, e: Exception) {
                 android.util.Log.e(tag, message, e)
@@ -87,157 +146,421 @@ fun TermuxTerminalScreen(onBack: () -> Unit) {
         }
     }
 
-    // Create Termux session once bootstrap is ready
-    LaunchedEffect(bootstrapReady) {
+    fun openNewShell(command: String? = null, title: String? = null) {
+        if (!bootstrapReady) return
+        TerminalSessionHub.attachClient(sessionClient)
+        TerminalSessionHub.createBootstrapSession(
+            context = context,
+            sessionClient = sessionClient,
+            title = title,
+            command = command,
+        )
+    }
+
+    // Open a new hub tab when host navigates here (openEpoch bumps each time)
+    LaunchedEffect(bootstrapReady, openEpoch) {
         if (!bootstrapReady) return@LaunchedEffect
-        try {
-            TermuxBootstrapManager.ensureProotDeps(context)
-            val launcher = TermuxBootstrapManager.launcherPath()   // /system/bin/linker64
-            val args  = TermuxBootstrapManager.buildProotArgs(context)
-            val cwd   = context.filesDir.absolutePath   // real path; proot handles chdir internally
-            val env   = TermuxBootstrapManager.buildEnvironment(context)
-            android.util.Log.d("TermuxTerminalScreen",
-                "Launching: $launcher args=${args.take(3).joinToString()}")
-            val s = TerminalSession(launcher, cwd, args, env, 2000, sessionClient)
-            s.initializeEmulator(80, 24, 0, 0)
-            sessionRef.value = s
-        } catch (e: Exception) {
-            android.util.Log.e("TermuxTerminalScreen", "Session init failed", e)
+        if (openEpoch == lastOpenEpoch && tabs.isNotEmpty()) return@LaunchedEffect
+        lastOpenEpoch = openEpoch
+        TerminalSessionHub.attachClient(sessionClient)
+        openNewShell(
+            command = initialCommand,
+            title = if (isInstalling && totalSteps > 0) installTitle
+            else TerminalSessionHub.titleForCommand(initialCommand),
+        )
+    }
+
+    // Re-bind client + attach active session to view
+    LaunchedEffect(activeId, tabs.size) {
+        TerminalSessionHub.attachClient(sessionClient)
+        val session = activeTab?.session
+        val view = termViewRef.value
+        if (session != null && view != null) {
+            view.attachSession(session)
+            view.updateSize()
+            view.onScreenUpdated()
         }
     }
 
+    // Do NOT kill hub sessions on dispose — only detach client
     DisposableEffect(Unit) {
         onDispose {
-            sessionRef.value?.finishIfRunning()
-            sessionRef.value = null
+            TerminalSessionHub.attachClient(null)
         }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(TermBg)
-            .systemBarsPadding()
-    ) {
-        // ── Top Bar ────────────────────────────────────────────────────────────
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(TermBar)
-                .padding(horizontal = 4.dp, vertical = 2.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconButton(onClick = {
-                sessionRef.value?.finishIfRunning()
-                onBack()
-            }) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = TermFg)
-            }
-            Text(
-                "Termux Terminal",
-                color = TermFg,
-                fontWeight = FontWeight.Bold,
-                fontSize = 16.sp,
-                modifier = Modifier.weight(1f)
-            )
-            Text(
-                if (bootstrapReady) "bash" else "setup",
-                color = if (bootstrapReady) TermGreen else TermBlue,
-                fontSize = 12.sp,
-                modifier = Modifier.padding(end = 8.dp)
-            )
-        }
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        drawerContent = {
+            ModalDrawerSheet(
+                drawerContainerColor = TermSide,
+                modifier = Modifier.width(280.dp)
+            ) {
+                Column(
+                    Modifier
+                        .fillMaxHeight()
+                        .padding(top = 12.dp)
+                ) {
+                    Text(
+                        "Terminals",
+                        color = TermFg,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                    )
+                    Text(
+                        "${tabs.size} running",
+                        color = TermMuted,
+                        fontSize = 12.sp,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 0.dp)
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Divider(color = Color(0xFF30363D))
 
-        // ── Content ─────────────────────────────────────────────────────────────
-        Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
-            if (!bootstrapReady) {
-                // Show setup / download screen
-                BootstrapSetupScreen(
-                    state = bootstrapState,
-                    onInstall = {
-                        android.util.Log.e("TermuxBootstrap", "INSTALL CLICKED")
-                        try {
+                    LazyColumn(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth()
+                    ) {
+                        if (tabs.isEmpty()) {
+                            item {
+                                Text(
+                                    "No open terminals",
+                                    color = TermMuted,
+                                    fontSize = 13.sp,
+                                    modifier = Modifier.padding(16.dp)
+                                )
+                            }
+                        }
+                        items(tabs, key = { it.id }) { tab ->
+                            val selected = tab.id == activeTab?.id
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(if (selected) TermActive else Color.Transparent)
+                                    .clickable {
+                                        TerminalSessionHub.setActive(tab.id)
+                                        scope.launch { drawerState.close() }
+                                    }
+                                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    Icons.Default.Terminal,
+                                    contentDescription = null,
+                                    tint = if (selected) TermAccent else TermMuted,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(Modifier.width(10.dp))
+                                androidx.compose.foundation.layout.Column(
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Text(
+                                        tab.title,
+                                        color = TermFg,
+                                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                                        fontSize = 14.sp,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Text(
+                                        tab.subtitle,
+                                        color = TermMuted,
+                                        fontSize = 11.sp,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                                IconButton(
+                                    onClick = {
+                                        TerminalSessionHub.close(tab.id)
+                                    },
+                                    modifier = Modifier.size(32.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Default.Close,
+                                        contentDescription = "Close",
+                                        tint = TermDanger,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    Divider(color = Color(0xFF30363D))
+                    TextButton(
+                        onClick = {
+                            openNewShell()
+                            scope.launch { drawerState.close() }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp),
+                        colors = ButtonDefaults.textButtonColors(contentColor = TermAccent)
+                    ) {
+                        Icon(Icons.Default.Add, null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text("New terminal", fontWeight = FontWeight.SemiBold)
+                    }
+                }
+            }
+        }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(TermBg)
+                .systemBarsPadding()
+        ) {
+            // ── Top Bar (always visible, including when no sessions) ───────
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(TermBar)
+                    .heightIn(min = 52.dp)
+                    .padding(horizontal = 2.dp, vertical = 2.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Always show Back — leave hub sessions alive
+                IconButton(
+                    onClick = onBack,
+                    modifier = Modifier.size(48.dp)
+                ) {
+                    Icon(
+                        Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Back",
+                        tint = TermFg,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+                IconButton(
+                    onClick = {
+                        scope.launch {
+                            if (drawerState.isClosed) drawerState.open() else drawerState.close()
+                        }
+                    },
+                    modifier = Modifier.size(48.dp)
+                ) {
+                    Icon(Icons.Default.Menu, "Sessions", tint = TermFg)
+                }
+                androidx.compose.foundation.layout.Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(horizontal = 4.dp)
+                ) {
+                    Text(
+                        activeTab?.title
+                            ?: if (isInstalling) installTitle else "Termux Terminal",
+                        color = TermFg,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 15.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        if (tabs.isEmpty()) "No open sessions"
+                        else "${tabs.size} session${if (tabs.size == 1) "" else "s"}",
+                        color = TermMuted,
+                        fontSize = 11.sp
+                    )
+                }
+                // New terminal
+                IconButton(
+                    onClick = { openNewShell() },
+                    enabled = bootstrapReady,
+                    modifier = Modifier.size(48.dp)
+                ) {
+                    Icon(Icons.Default.Add, "New terminal", tint = if (bootstrapReady) TermGreen else TermMuted)
+                }
+                Text(
+                    if (bootstrapReady) "bash" else "setup",
+                    color = if (bootstrapReady) TermGreen else TermBlue,
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(end = 8.dp)
+                )
+            }
+
+            // ── Install Progress ───────────────────────────────────────────
+            if (isInstalling && bootstrapReady && totalSteps > 0) {
+                val progress = if (currentStep > 0)
+                    (currentStep.toFloat() / totalSteps.toFloat()).coerceIn(0f, 1f)
+                else 0f
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color(0xFF0D1F12))
+                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            if (currentStepName.isNotBlank()) currentStepName else "Preparing…",
+                            fontSize = 12.sp,
+                            color = TermGreen,
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Text(
+                            if (currentStep > 0) "$currentStep / $totalSteps" else "0 / $totalSteps",
+                            fontSize = 11.sp,
+                            color = TermFg.copy(alpha = 0.6f)
+                        )
+                    }
+                    Spacer(Modifier.height(4.dp))
+                    LinearProgressIndicator(
+                        progress = { progress },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(4.dp)
+                            .clip(RoundedCornerShape(2.dp)),
+                        color = TermGreen,
+                        trackColor = TermGreen.copy(alpha = 0.15f)
+                    )
+                }
+            }
+
+            // ── Content ────────────────────────────────────────────────────
+            Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
+                if (!bootstrapReady) {
+                    BootstrapSetupScreen(
+                        state = bootstrapState,
+                        onInstall = {
                             scope.launch {
-                                android.util.Log.e("TermuxBootstrap", "Coroutine launched")
                                 TermuxBootstrapManager.install(context) { state ->
-                                    android.util.Log.e("TermuxBootstrap", "State: $state")
                                     bootstrapState = state
                                     if (state is BootstrapState.Done) {
                                         bootstrapReady = true
                                     }
                                 }
                             }
-                        } catch (e: Exception) {
-                            android.util.Log.e("TermuxBootstrap", "Exception: ${e.message}", e)
                         }
-                    }
-                )
-            } else {
-                // Terminal view
-                val session = sessionRef.value
-                AndroidView(
-                    factory = { ctx ->
-                        TerminalView(ctx, null).apply {
-                            setTextSize(38)
-                            setTerminalViewClient(object : TerminalViewClient {
-                                override fun onScale(scale: Float): Float = 1.0f
-                                override fun onSingleTapUp(e: android.view.MotionEvent) {
-                                    requestFocus()
-                                    val imm = ctx.getSystemService(Context.INPUT_METHOD_SERVICE)
-                                        as InputMethodManager
-                                    imm.showSoftInput(this@apply, InputMethodManager.SHOW_FORCED)
+                    )
+                } else {
+                    val session = activeTab?.session
+                    if (session == null) {
+                        // Empty state — explicit Back so user is never stuck
+                        Box(
+                            Modifier
+                                .fillMaxSize()
+                                .background(TermBg),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(12.dp),
+                                modifier = Modifier.padding(32.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.Terminal,
+                                    contentDescription = null,
+                                    tint = TermMuted,
+                                    modifier = Modifier.size(48.dp)
+                                )
+                                Text("No terminal open", color = TermFg, fontWeight = FontWeight.SemiBold)
+                                Text(
+                                    "Start a shell or go back home.",
+                                    color = TermMuted,
+                                    fontSize = 13.sp,
+                                    textAlign = TextAlign.Center
+                                )
+                                Spacer(Modifier.height(4.dp))
+                                Button(
+                                    onClick = { openNewShell() },
+                                    colors = ButtonDefaults.buttonColors(containerColor = TermAccent),
+                                    modifier = Modifier.fillMaxWidth(0.75f).height(48.dp)
+                                ) {
+                                    Icon(Icons.Default.Add, null)
+                                    Spacer(Modifier.width(6.dp))
+                                    Text("New terminal")
                                 }
-                                override fun shouldEnforceCharBasedInput(): Boolean = true
-                                override fun shouldBackButtonBeMappedToEscape(): Boolean = false
-                                override fun shouldUseCtrlSpaceWorkaround(): Boolean = true
-                                override fun isTerminalViewSelected(): Boolean = true
-                                override fun copyModeChanged(copyMode: Boolean) {}
-                                override fun onKeyDown(keyCode: Int, e: KeyEvent, s: TerminalSession): Boolean = false
-                                override fun onKeyUp(code: Int, e: KeyEvent): Boolean = false
-                                override fun onLongPress(e: android.view.MotionEvent): Boolean = false
-                                override fun readControlKey(): Boolean = ctrlDown
-                                override fun readAltKey(): Boolean = false
-                                override fun readShiftKey(): Boolean = false
-                                override fun readFnKey(): Boolean = false
-                                override fun onCodePoint(codePoint: Int, ctrlDown: Boolean, s: TerminalSession): Boolean = false
-                                override fun onEmulatorSet() {}
-                                override fun logError(t: String, m: String)   { android.util.Log.e(t, m) }
-                                override fun logWarn(t: String, m: String)    { android.util.Log.w(t, m) }
-                                override fun logInfo(t: String, m: String)    { android.util.Log.i(t, m) }
-                                override fun logDebug(t: String, m: String)   { android.util.Log.d(t, m) }
-                                override fun logVerbose(t: String, m: String) { android.util.Log.v(t, m) }
-                                override fun logStackTraceWithMessage(t: String, m: String, e: Exception) {
-                                    android.util.Log.e(t, m, e)
+                                OutlinedButton(
+                                    onClick = onBack,
+                                    modifier = Modifier.fillMaxWidth(0.75f).height(48.dp),
+                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = TermFg),
+                                    border = ButtonDefaults.outlinedButtonBorder(enabled = true)
+                                ) {
+                                    Icon(
+                                        Icons.AutoMirrored.Filled.ArrowBack,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(Modifier.width(6.dp))
+                                    Text("Back to Home")
                                 }
-                                override fun logStackTrace(t: String, e: Exception) {
-                                    android.util.Log.e(t, "stacktrace", e)
-                                }
-                            })
-                            isFocusable = true
-                            isFocusableInTouchMode = true
-                            termViewRef.value = this
-                        }
-                    },
-                    update = { view ->
-                        session?.let { s ->
-                            if (view.currentSession == null) {
-                                view.attachSession(s)
-                                view.updateSize()
                             }
                         }
-                    },
-                    modifier = Modifier.fillMaxSize()
+                    } else {
+                        key(activeTab?.id ?: "none") {
+                            AndroidView(
+                                factory = { ctx ->
+                                    TerminalView(ctx, null).apply {
+                                        setTextSize(38)
+                                        setTerminalViewClient(object : TerminalViewClient {
+                                            override fun onScale(scale: Float): Float = 1.0f
+                                            override fun onSingleTapUp(e: android.view.MotionEvent) {
+                                                requestFocus()
+                                                val imm = ctx.getSystemService(Context.INPUT_METHOD_SERVICE)
+                                                    as InputMethodManager
+                                                imm.showSoftInput(this@apply, InputMethodManager.SHOW_FORCED)
+                                            }
+                                            override fun shouldEnforceCharBasedInput(): Boolean = true
+                                            override fun shouldBackButtonBeMappedToEscape(): Boolean = false
+                                            override fun shouldUseCtrlSpaceWorkaround(): Boolean = true
+                                            override fun isTerminalViewSelected(): Boolean = true
+                                            override fun copyModeChanged(copyMode: Boolean) {}
+                                            override fun onKeyDown(keyCode: Int, e: KeyEvent, s: TerminalSession): Boolean = false
+                                            override fun onKeyUp(code: Int, e: KeyEvent): Boolean = false
+                                            override fun onLongPress(e: android.view.MotionEvent): Boolean = false
+                                            override fun readControlKey(): Boolean = ctrlDown
+                                            override fun readAltKey(): Boolean = false
+                                            override fun readShiftKey(): Boolean = false
+                                            override fun readFnKey(): Boolean = false
+                                            override fun onCodePoint(codePoint: Int, ctrlDown: Boolean, s: TerminalSession): Boolean = false
+                                            override fun onEmulatorSet() {}
+                                            override fun logError(t: String, m: String) { android.util.Log.e(t, m) }
+                                            override fun logWarn(t: String, m: String) { android.util.Log.w(t, m) }
+                                            override fun logInfo(t: String, m: String) { android.util.Log.i(t, m) }
+                                            override fun logDebug(t: String, m: String) { android.util.Log.d(t, m) }
+                                            override fun logVerbose(t: String, m: String) { android.util.Log.v(t, m) }
+                                            override fun logStackTraceWithMessage(t: String, m: String, e: Exception) {
+                                                android.util.Log.e(t, m, e)
+                                            }
+                                            override fun logStackTrace(t: String, e: Exception) {
+                                                android.util.Log.e(t, "stacktrace", e)
+                                            }
+                                        })
+                                        isFocusable = true
+                                        isFocusableInTouchMode = true
+                                        termViewRef.value = this
+                                        attachSession(session)
+                                        updateSize()
+                                    }
+                                },
+                                update = { view ->
+                                    termViewRef.value = view
+                                    if (view.currentSession !== session) {
+                                        view.attachSession(session)
+                                        view.updateSize()
+                                        view.onScreenUpdated()
+                                    }
+                                },
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
+                    }
+                }
+            }
+
+            if (bootstrapReady && activeTab?.session != null) {
+                ExtraKeysRow(
+                    ctrlDown = ctrlDown,
+                    onCtrlToggle = { ctrlDown = !ctrlDown },
+                    onKey = { sequence -> activeTab?.session?.write(sequence) }
                 )
             }
-        }
-
-        // Only show extra keys when terminal is active
-        if (bootstrapReady) {
-            ExtraKeysRow(
-                ctrlDown = ctrlDown,
-                onCtrlToggle = { ctrlDown = !ctrlDown },
-                onKey = { sequence -> sessionRef.value?.write(sequence) }
-            )
         }
     }
 }
@@ -250,11 +573,10 @@ private fun BootstrapSetupScreen(
     onInstall: () -> Unit
 ) {
     val isDownloading = state is BootstrapState.Downloading
-    val isExtracting  = state is BootstrapState.Extracting
-    val isError       = state is BootstrapState.Error
-    val isBusy        = isDownloading || isExtracting
+    val isExtracting = state is BootstrapState.Extracting
+    val isError = state is BootstrapState.Error
+    val isBusy = isDownloading || isExtracting
 
-    // Pulsing animation for icon
     val infiniteTransition = rememberInfiniteTransition(label = "pulse")
     val pulseAlpha by infiniteTransition.animateFloat(
         initialValue = 0.5f,
@@ -275,7 +597,6 @@ private fun BootstrapSetupScreen(
             verticalArrangement = Arrangement.spacedBy(20.dp),
             modifier = Modifier.padding(32.dp)
         ) {
-            // Icon
             Box(
                 modifier = Modifier
                     .size(96.dp)
@@ -304,14 +625,13 @@ private fun BootstrapSetupScreen(
 
             Text(
                 "Download the real Termux package environment (~10 MB).\n" +
-                "Includes bash, pkg, apt, and hundreds of packages.",
+                    "Includes bash, pkg, apt, and hundreds of packages.",
                 fontSize = 14.sp,
                 color = TermFg.copy(alpha = 0.6f),
                 textAlign = TextAlign.Center,
                 lineHeight = 20.sp
             )
 
-            // Status row
             when (state) {
                 is BootstrapState.Downloading -> {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -345,7 +665,6 @@ private fun BootstrapSetupScreen(
                 else -> {}
             }
 
-            // Install button (only when not busy)
             if (!isBusy) {
                 Button(
                     onClick = onInstall,
@@ -363,7 +682,6 @@ private fun BootstrapSetupScreen(
                 }
             }
 
-            // Feature chips
             if (!isBusy) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     listOf("bash", "pkg/apt", "No Root", "1000+ pkgs").forEach { label ->
@@ -391,14 +709,14 @@ private fun ExtraKeysRow(
     onKey: (String) -> Unit,
 ) {
     val keys = listOf(
-        Triple("ESC",  "\u001b",   false),
-        Triple("TAB",  "\t",       false),
-        Triple("↑",    "\u001b[A", false),
-        Triple("↓",    "\u001b[B", false),
-        Triple("←",    "\u001b[D", false),
-        Triple("→",    "\u001b[C", false),
+        Triple("ESC", "\u001b", false),
+        Triple("TAB", "\t", false),
+        Triple("↑", "\u001b[A", false),
+        Triple("↓", "\u001b[B", false),
+        Triple("←", "\u001b[D", false),
+        Triple("→", "\u001b[C", false),
         Triple("HOME", "\u001b[H", false),
-        Triple("END",  "\u001b[F", false),
+        Triple("END", "\u001b[F", false),
     )
 
     Row(

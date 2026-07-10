@@ -48,15 +48,20 @@ android {
 
     buildTypes {
         debug {
+            // Keep debuggable for local dev; device shows a banner on debug APKs.
             isDebuggable = true
             packaging {
                 resources.excludes.add("META-INF/**")
             }
         }
+        // Install this for production-like devices (no "debuggable app" banner).
+        // Minify off by default here: R8 OOMs on this machine for full app+x11 graph.
+        // F-Droid/CI can re-enable minify with more heap if needed.
         release {
             signingConfig = signingConfigs.getByName("debug")
-            isMinifyEnabled = true
-            isShrinkResources = true
+            isDebuggable = false
+            isMinifyEnabled = false
+            isShrinkResources = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

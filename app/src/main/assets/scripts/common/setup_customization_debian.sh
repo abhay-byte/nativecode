@@ -10,6 +10,11 @@ ASSETS_DIR="$(dirname "$0")/../../../assets"
 THEME_DIR="/usr/share/themes"
 ICON_DIR="/usr/share/icons"
 
+# Non-interactive when no TTY or FLUX_THEME / FLUX_NONINTERACTIVE set
+is_interactive() {
+    [ -t 0 ] && [ -z "${FLUX_NONINTERACTIVE:-}" ] && [ -z "${FLUX_THEME:-}" ]
+}
+
 # Error Handler
 handle_error() {
     echo ""
@@ -17,7 +22,9 @@ handle_error() {
     echo "---------------------------------------------------"
     echo "Please check the error message above for details."
     echo "---------------------------------------------------"
-    read -p "Press Enter to acknowledge error and exit..."
+    if is_interactive; then
+        read -p "Press Enter to acknowledge error and exit..."
+    fi
     exit 1
 }
 
@@ -27,34 +34,58 @@ echo "NativeCode: Starting XFCE4 Customization..."
 echo "NativeCode: Installing customization tools..."
 export DEBIAN_FRONTEND=noninteractive
 apt update -y
-apt install -y xfce4-goodies curl fastfetch wget unzip fontconfig || handle_error "Dependency Installation"
+apt install -y xfce4-goodies curl fastfetch wget unzip fontconfig tar xz-utils || handle_error "Dependency Installation"
 
-# 2. Deploy Assets (From GitHub Release debian-v1)
-ASSET_REPO="abhay-byte/nativecode"
+# 2. Deploy Assets (From GitHub Release debian-v1 on fluxlinux)
+# Assets (theme/icons/cursor/wallpaper/font) live on abhay-byte/fluxlinux, NOT nativecode.
+ASSET_REPO="abhay-byte/fluxlinux"
 ASSET_TAG="debian-v1"
 BASE_URL="https://github.com/$ASSET_REPO/releases/download/$ASSET_TAG"
 
 echo "NativeCode: Downloading assets from $BASE_URL..."
 
-# Helper to extract all contents
+# Helper: download zip, extract into TARGET_DIR, unpack nested tar.xz / tar.gz
 extract_all_assets() {
     local URL="$1"
     local TARGET_DIR="$2"
-    local TEMP_ZIP="/tmp/$(basename "$URL")"
-    
-    echo " - Downloading $(basename "$URL")..."
-    wget -q --show-progress "$URL" -O "$TEMP_ZIP"
-    
-    echo " - Extracting to $TARGET_DIR..."
-    unzip -q -o "$TEMP_ZIP" -d "$TARGET_DIR"
-    rm "$TEMP_ZIP"
+    local LABEL="${3:-$(basename "$URL")}"
+    local TEMP_ZIP="/tmp/nativecode-$(basename "$URL")"
 
-    # Extract any nested tarballs found in the target dir
-    find "$TARGET_DIR" -maxdepth 1 -name "*.tar.xz" -exec tar -xf {} -C "$TARGET_DIR" \;
-    find "$TARGET_DIR" -maxdepth 1 -name "*.tar.gz" -exec tar -xzf {} -C "$TARGET_DIR" \;
-    
-    # Cleanup tars
-    rm -f "$TARGET_DIR"/*.tar.xz "$TARGET_DIR"/*.tar.gz
+    mkdir -p "$TARGET_DIR"
+    echo " - Downloading $LABEL..."
+    wget -q --show-progress --tries=3 --timeout=60 "$URL" -O "$TEMP_ZIP" \
+        || handle_error "Download $LABEL from $URL"
+
+    # Reject empty / non-zip (HTML 404 pages start with '<' not PK)
+    if [ ! -s "$TEMP_ZIP" ]; then
+        rm -f "$TEMP_ZIP"
+        handle_error "Empty download for $LABEL"
+    fi
+    magic=$(od -An -tx1 -N2 "$TEMP_ZIP" 2>/dev/null | tr -d ' \n')
+    if [ "$magic" != "504b" ]; then
+        rm -f "$TEMP_ZIP"
+        handle_error "Invalid download for $LABEL (not a zip, magic=$magic)"
+    fi
+
+    echo " - Extracting $LABEL to $TARGET_DIR..."
+    unzip -q -o "$TEMP_ZIP" -d "$TARGET_DIR" || {
+        rm -f "$TEMP_ZIP"
+        handle_error "Unzip $LABEL"
+    }
+    rm -f "$TEMP_ZIP"
+
+    # Nested tarballs (theme/cursor/icons release layout)
+    local tarf
+    for tarf in "$TARGET_DIR"/*.tar.xz; do
+        [ -f "$tarf" ] || continue
+        tar -xf "$tarf" -C "$TARGET_DIR" || handle_error "Extract $(basename "$tarf")"
+        rm -f "$tarf"
+    done
+    for tarf in "$TARGET_DIR"/*.tar.gz; do
+        [ -f "$tarf" ] || continue
+        tar -xzf "$tarf" -C "$TARGET_DIR" || handle_error "Extract $(basename "$tarf")"
+        rm -f "$tarf"
+    done
 }
 
 # 3. Theme Selection Prompt
@@ -65,13 +96,16 @@ if [ -n "$FLUX_THEME" ]; then
     else
         THEME_CHOICE="1"
     fi
-else
+elif is_interactive; then
     echo "------------------------------------------------"
     echo "Select Theme Preference:"
     echo "1) Dark (Default)"
     echo "2) Light"
     read -p "Enter choice [1-2]: " THEME_CHOICE
     echo "------------------------------------------------"
+else
+    echo "NativeCode: Non-interactive — defaulting to Dark theme"
+    THEME_CHOICE="1"
 fi
 
 if [ "$THEME_CHOICE" == "2" ]; then
@@ -91,89 +125,117 @@ fi
 # Install Themes (Both)
 echo "NativeCode: Installing Themes..."
 mkdir -p "$THEME_DIR"
-extract_all_assets "$BASE_URL/theme.zip" "$THEME_DIR"
+extract_all_assets "$BASE_URL/theme.zip" "$THEME_DIR" "theme.zip"
+[ -d "$THEME_DIR/$SEL_THEME" ] || handle_error "Theme missing after extract: $THEME_DIR/$SEL_THEME"
 
 # Install Icons
 echo "NativeCode: Installing Icons..."
 mkdir -p "$ICON_DIR"
-extract_all_assets "$BASE_URL/icons.zip" "$ICON_DIR"
-# Icons are assumed to have known names or we use the selected one directly.
-# SEL_ICON is already set based on theme choice.
+extract_all_assets "$BASE_URL/icons.zip" "$ICON_DIR" "icons.zip"
+# Papirus tarball may unpack under papirus-icon-theme-* — promote theme dirs if needed
+if [ ! -d "$ICON_DIR/$SEL_ICON" ]; then
+    found_icon=$(find "$ICON_DIR" -maxdepth 3 -type d -name "$SEL_ICON" 2>/dev/null | head -1)
+    if [ -n "$found_icon" ] && [ "$found_icon" != "$ICON_DIR/$SEL_ICON" ]; then
+        echo " - Moving icon theme $SEL_ICON into $ICON_DIR"
+        mv "$found_icon" "$ICON_DIR/" 2>/dev/null || true
+        parent=$(dirname "$found_icon")
+        for sib in Papirus Papirus-Dark Papirus-Light; do
+            [ -d "$parent/$sib" ] && [ ! -d "$ICON_DIR/$sib" ] && mv "$parent/$sib" "$ICON_DIR/" 2>/dev/null || true
+        done
+    fi
+fi
+[ -d "$ICON_DIR/$SEL_ICON" ] || handle_error "Icon theme missing: $ICON_DIR/$SEL_ICON"
 
-# Install Cursors (Both variants)
+# Install Cursors (Both variants → /usr/share/icons/Vimix-*)
 echo "NativeCode: Installing Cursors..."
-extract_all_assets "$BASE_URL/cursor.zip" "$ICON_DIR"
+extract_all_assets "$BASE_URL/cursor.zip" "$ICON_DIR" "cursor.zip"
+for cname in Vimix-cursors Vimix-white-cursors; do
+    if [ ! -d "$ICON_DIR/$cname" ]; then
+        found_c=$(find "$ICON_DIR" -maxdepth 3 -type d -name "$cname" 2>/dev/null | head -1)
+        if [ -n "$found_c" ]; then
+            mv "$found_c" "$ICON_DIR/" 2>/dev/null || true
+        fi
+    fi
+done
+[ -d "$ICON_DIR/$SEL_CURSOR" ] || handle_error "Cursor theme missing: $ICON_DIR/$SEL_CURSOR"
+if [ ! -f "$ICON_DIR/$SEL_CURSOR/index.theme" ] && [ -d "$ICON_DIR/$SEL_CURSOR/cursors" ]; then
+    cat > "$ICON_DIR/$SEL_CURSOR/index.theme" <<CTHEME
+[Icon Theme]
+Name=$SEL_CURSOR
+Comment=Vimix cursors
+Inherits=default
+CTHEME
+fi
 
-# Wallpaper Setup
+# Wallpaper Setup — XFCE last-image path must exist
 WALLPAPER_DIR="$USER_HOME/Pictures/Wallpapers"
 mkdir -p "$WALLPAPER_DIR"
-chown -R "$CUSTOM_USER:$CUSTOM_GROUP" "$USER_HOME/Pictures" 2>/dev/null
+chown -R "$CUSTOM_USER:$CUSTOM_GROUP" "$USER_HOME/Pictures" 2>/dev/null || true
 
 echo "NativeCode: Downloading Wallpaper..."
-TEMP_WP_ZIP="/tmp/wallpaper.zip"
-wget -q --show-progress "$BASE_URL/wallpaper.zip" -O "$TEMP_WP_ZIP"
-unzip -o -j "$TEMP_WP_ZIP" -d "$WALLPAPER_DIR"
-rm "$TEMP_WP_ZIP"
-[ -f "$WALLPAPER_DIR/dark.png" ] && mv "$WALLPAPER_DIR/dark.png" "$WALLPAPER_DIR/nativecode-dark.png"
-[ -f "$WALLPAPER_DIR/light.png" ] && mv "$WALLPAPER_DIR/light.png" "$WALLPAPER_DIR/nativecode-light.png"
-chown "$CUSTOM_USER:$CUSTOM_GROUP" "$WALLPAPER_DIR"/*
-
+TEMP_WP_ZIP="/tmp/nativecode-wallpaper.zip"
+wget -q --show-progress --tries=3 --timeout=60 "$BASE_URL/wallpaper.zip" -O "$TEMP_WP_ZIP" \
+    || handle_error "Wallpaper download"
+unzip -o -j "$TEMP_WP_ZIP" -d "$WALLPAPER_DIR" || handle_error "Wallpaper unzip"
+rm -f "$TEMP_WP_ZIP"
+# Release zip has dark.png / light.png — rename to paths used by xfconf
+[ -f "$WALLPAPER_DIR/dark.png" ] && mv -f "$WALLPAPER_DIR/dark.png" "$WALLPAPER_DIR/nativecode-dark.png"
+[ -f "$WALLPAPER_DIR/light.png" ] && mv -f "$WALLPAPER_DIR/light.png" "$WALLPAPER_DIR/nativecode-light.png"
+if [ ! -f "$WALLPAPER_DIR/$SEL_WALLPAPER" ]; then
+    any_png=$(find "$WALLPAPER_DIR" -maxdepth 1 -type f \( -iname '*.png' -o -iname '*.jpg' \) | head -1)
+    [ -n "$any_png" ] && cp -f "$any_png" "$WALLPAPER_DIR/$SEL_WALLPAPER"
+fi
+[ -f "$WALLPAPER_DIR/$SEL_WALLPAPER" ] || handle_error "Wallpaper missing: $WALLPAPER_DIR/$SEL_WALLPAPER"
+chown -R "$CUSTOM_USER:$CUSTOM_GROUP" "$WALLPAPER_DIR" 2>/dev/null || true
+chmod 644 "$WALLPAPER_DIR"/* 2>/dev/null || true
 
 # Install JetBrains Mono Nerd Font
-# Using proper Debian font location: /usr/share/fonts/truetype/
+# Prefer release font.zip (family: "JetBrainsMono Nerd Font") over latest nerd-fonts (NL variants mismatch)
 FONT_DIR="/usr/share/fonts/truetype/jetbrains-mono-nerd"
 FONT_INSTALLED=false
 
-# Check if font already installed
-if fc-list | grep -qi "JetBrainsMono Nerd"; then
+if fc-list : family 2>/dev/null | grep -qF "JetBrainsMono Nerd Font"; then
     echo "NativeCode: JetBrains Mono Nerd Font already installed."
     FONT_INSTALLED=true
 fi
 
 if [ "$FONT_INSTALLED" = false ]; then
     echo "NativeCode: Installing JetBrains Mono Nerd Font..."
-    
-    # Create font directory
     mkdir -p "$FONT_DIR"
-    
-    # Download from official Nerd Fonts GitHub releases
-    NERD_FONT_URL="https://github.com/ryanoasis/nerd-fonts/releases/latest/download/JetBrainsMono.zip"
-    TEMP_ZIP="/tmp/JetBrainsMono.zip"
-    
-    echo " - Downloading JetBrains Mono Nerd Font..."
-    wget -q --show-progress "$NERD_FONT_URL" -O "$TEMP_ZIP" || {
-        echo "NativeCode: Direct download failed, trying from release..."
-        wget -q --show-progress "$BASE_URL/font.zip" -O "$TEMP_ZIP" || handle_error "Font Download"
-    }
-    
-    # Extract only .ttf files (ignore nested folders, Windows-only formats)
+    TEMP_ZIP="/tmp/nativecode-JetBrainsMono.zip"
+
+    echo " - Downloading font.zip from release..."
+    if ! wget -q --show-progress --tries=3 --timeout=120 "$BASE_URL/font.zip" -O "$TEMP_ZIP"; then
+        echo "NativeCode: Release font.zip failed, trying Nerd Fonts latest..."
+        NERD_FONT_URL="https://github.com/ryanoasis/nerd-fonts/releases/latest/download/JetBrainsMono.zip"
+        wget -q --show-progress --tries=3 --timeout=120 "$NERD_FONT_URL" -O "$TEMP_ZIP" \
+            || handle_error "Font Download"
+    fi
+
     echo " - Extracting font files..."
-    unzip -o -j "$TEMP_ZIP" "*.ttf" -d "$FONT_DIR" 2>/dev/null || \
-    unzip -o "$TEMP_ZIP" -d "$FONT_DIR" 2>/dev/null
-    
-    # Clean up any non-font files that might have been extracted
+    unzip -o -j "$TEMP_ZIP" "JetBrainsMonoNerdFont*.ttf" -d "$FONT_DIR" 2>/dev/null \
+        || unzip -o -j "$TEMP_ZIP" "*.ttf" -d "$FONT_DIR" 2>/dev/null \
+        || unzip -o "$TEMP_ZIP" -d "$FONT_DIR" 2>/dev/null \
+        || handle_error "Font unzip"
+
     find "$FONT_DIR" -type f ! -name "*.ttf" ! -name "*.otf" -delete 2>/dev/null
-    
-    # Remove temp file
+    if ls "$FONT_DIR"/JetBrainsMonoNerdFont-*.ttf >/dev/null 2>&1; then
+        rm -f "$FONT_DIR"/JetBrainsMonoNLNerdFont*.ttf 2>/dev/null || true
+    fi
     rm -f "$TEMP_ZIP"
-    
-    # Set correct permissions
-    chmod 644 "$FONT_DIR"/*.ttf 2>/dev/null
-    chmod 644 "$FONT_DIR"/*.otf 2>/dev/null
-    
-    # Rebuild font cache (system-wide, verbose)
+
+    chmod 644 "$FONT_DIR"/*.ttf 2>/dev/null || true
+    chmod 644 "$FONT_DIR"/*.otf 2>/dev/null || true
+
     echo " - Rebuilding font cache..."
-    fc-cache -fv "$FONT_DIR"
-    
-    # Also rebuild user cache
-    su -s /bin/bash - "$CUSTOM_USER" -c "fc-cache -f" 2>/dev/null
-    
-    # Verify installation
-    if fc-list | grep -qi "JetBrainsMono Nerd"; then
+    fc-cache -f "$FONT_DIR" 2>/dev/null || fc-cache -f
+    su -s /bin/bash - "$CUSTOM_USER" -c "fc-cache -f" 2>/dev/null || true
+
+    if fc-list : family 2>/dev/null | grep -qF "JetBrainsMono Nerd Font"; then
         echo "NativeCode: ✓ JetBrains Mono Nerd Font installed successfully!"
     else
-        echo "NativeCode: ⚠ Font may not be properly registered. Checking installed files..."
-        ls -la "$FONT_DIR"
+        echo "NativeCode: ⚠ Font family not registered as expected. Files:"
+        ls -la "$FONT_DIR" | head -20
     fi
 fi
 # 4. Apply Settings for User 'flux'
@@ -749,9 +811,10 @@ su -s /bin/bash - "$CUSTOM_USER" -c "curl -fsSL https://raw.githubusercontent.co
 echo "NativeCode: Installing pokemon-colorscripts..."
 POKEMON_TEMP="/tmp/pokemon-colorscripts"
 rm -rf "$POKEMON_TEMP"
-git clone https://gitlab.com/phoneybadger/pokemon-colorscripts.git "$POKEMON_TEMP" 2>/dev/null
-cd "$POKEMON_TEMP" && ./install.sh 2>/dev/null
-cd - > /dev/null
+git clone https://gitlab.com/phoneybadger/pokemon-colorscripts.git "$POKEMON_TEMP" 2>/dev/null || true
+if [ -d "$POKEMON_TEMP" ]; then
+    (cd "$POKEMON_TEMP" && ./install.sh 2>/dev/null) || true
+fi
 rm -rf "$POKEMON_TEMP"
 
 # Configure .zshrc
@@ -819,4 +882,11 @@ sleep 1
 
 echo "NativeCode: Customization Complete!"
 echo "------------------------------------------------"
-read -p "Press Enter to close..."
+echo "NativeCode: Paths verified:"
+echo "  wallpaper: $WALLPAPER_DIR/$SEL_WALLPAPER"
+echo "  theme:     $THEME_DIR/$SEL_THEME"
+echo "  icons:     $ICON_DIR/$SEL_ICON"
+echo "  cursor:    $ICON_DIR/$SEL_CURSOR"
+if is_interactive; then
+    read -p "Press Enter to close..."
+fi

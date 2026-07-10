@@ -8,13 +8,11 @@ mkdir -p "$HOME/.nativecode"
 
 if [ -f "$MARKER_FILE" ]; then
     echo "NativeCode: Termux Setup already completed. Skipping."
-    am start -a android.intent.action.VIEW -d "nativecode://callback?result=success&name=setup_termux"
     exit 0
 fi
 
 # Trap errors
 set -e
-trap 'am start -a android.intent.action.VIEW -d "nativecode://callback?result=failure&name=setup_termux"' ERR
 
 echo "NativeCode: Initializing Termux Environment..."
 
@@ -31,10 +29,8 @@ rm -rf "$PREFIX/var/cache/apt/archives/lock"
 echo "NativeCode: Repairing package database..."
 dpkg --configure -a || true
 
-# 1. Update Packages
-# Use apt-get directly with options to keep old config files (Answer 'N' automatically)
-yes | pkg update -y
-yes | apt-get -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" upgrade
+# 1. Update package lists only (no full upgrade — avoids hangs in proot)
+pkg update -y
 
 # 2. Install Core Dependencies
 # proot-distro: For rootless containers
@@ -94,4 +90,3 @@ echo "📝 Optional: Run 'bash ~/termux_tweaks.sh' for enhanced terminal experie
 
 # Create marker file to track initialization
 touch "$MARKER_FILE"
-am start -a android.intent.action.VIEW -d "nativecode://callback?result=success&name=setup_termux"

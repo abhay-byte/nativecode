@@ -219,61 +219,60 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    /**
+     * Bound from Compose so queue tasks open the **internal** Termux terminal
+     * (not external com.termux RUN_COMMAND).
+     */
+    private var openInternalTerminal: (
+        (command: String, title: String, steps: Int, distroId: String?, componentId: String?) -> Unit
+    )? = null
+
     private fun processNextInstallTask() {
         val queueManager = com.ivarna.nativecode.core.utils.InstallationQueueManager
         if (!queueManager.hasPending()) {
             android.widget.Toast.makeText(this, "All Installation Steps Complete! 🎉", android.widget.Toast.LENGTH_LONG).show()
-            
-            // Mark Distro Installed
+
             val distroId = queueManager.activeDistroId
             if (distroId != null) {
                 com.ivarna.nativecode.core.utils.StateManager.setDistroInstalled(this, distroId, true)
-                // Trigger UI refresh via StateFlow
                 com.ivarna.nativecode.core.utils.StateManager.triggerRefresh()
             }
-            
+
             queueManager.clear()
-            // Reset Progress UI state effectively done by clear()
             return
         }
 
-        val nextTask = queueManager.next() ?: return // advances queue state internal
-        
-        // Log Update
+        val nextTask = queueManager.next() ?: return
         android.util.Log.d("NativeCode", "Processing Task: ${nextTask.name}")
-        
         android.widget.Toast.makeText(this, "Starting: ${nextTask.name}...", android.widget.Toast.LENGTH_SHORT).show()
-        
-        if (nextTask.type == com.ivarna.nativecode.core.utils.TaskType.HW_ACCEL || nextTask.type == com.ivarna.nativecode.core.utils.TaskType.COMPONENT) {
-            val scriptName = nextTask.scriptName
+
+        if (nextTask.type == com.ivarna.nativecode.core.utils.TaskType.HW_ACCEL ||
+            nextTask.type == com.ivarna.nativecode.core.utils.TaskType.COMPONENT
+        ) {
+            val scriptName = nextTask.scriptName ?: return
             val distroId = nextTask.distroId
-            
-            if (scriptName != null) {
-                // Fetch Script Content
-                // We need ScriptManager. Since we are in Activity, we can instantiate it.
+            try {
                 val scriptManager = com.ivarna.nativecode.core.data.ScriptManager(this)
-                var scriptContent = scriptManager.getScriptContent(scriptName)
-                
-                // Inject Environment Variables from Task
-                if (nextTask.extraEnv.isNotEmpty()) {
-                    val envBlock = nextTask.extraEnv.entries.joinToString("\n") { "export ${it.key}=\"${it.value}\"" }
-                    // Prepend to script content
-                    scriptContent = "$envBlock\n\n$scriptContent"
-                }
-                
-                // Build Intent with Callback
-                val intent = com.ivarna.nativecode.core.data.TermuxIntentFactory.buildRunFeatureScriptIntent(
+                val scriptContent = scriptManager.getScriptContent(scriptName)
+                val command = com.ivarna.nativecode.core.data.TermuxIntentFactory.buildRunFeatureScriptCommand(
                     distroId = distroId,
                     scriptContent = scriptContent,
-                    callbackName = nextTask.id
+                    callbackName = nextTask.id,
+                    extraEnv = nextTask.extraEnv,
                 )
-                
-                try {
-                    startService(intent) // or startActivity depending on IntentFactory implementation.
-                } catch (e: Exception) {
-                    android.util.Log.e("NativeCode", "Failed to start task: ${nextTask.name}", e)
-                    android.widget.Toast.makeText(this, "Failed to start ${nextTask.name}", android.widget.Toast.LENGTH_SHORT).show()
+                openInternalTerminal?.invoke(
+                    command,
+                    "Installing ${nextTask.name}",
+                    1,
+                    distroId,
+                    nextTask.id,
+                ) ?: run {
+                    android.util.Log.e("NativeCode", "openInternalTerminal not bound")
+                    android.widget.Toast.makeText(this, "Terminal not ready", android.widget.Toast.LENGTH_SHORT).show()
                 }
+            } catch (e: Exception) {
+                android.util.Log.e("NativeCode", "Failed to start task: ${nextTask.name}", e)
+                android.widget.Toast.makeText(this, "Failed to start ${nextTask.name}", android.widget.Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -283,6 +282,12 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         handleDeepLink(intent)
         handleSharedImage(intent)
+        // Keep ~/start_gui.sh (etc.) in sync with APK assets on every cold start
+        try {
+            com.ivarna.nativecode.core.data.ScriptManager(this).deployLaunchScriptsToHome()
+        } catch (e: Exception) {
+            android.util.Log.w("NativeCode", "Launch script deploy onCreate: ${e.message}")
+        }
         setContent {
             // Watch Theme Preference
             val context = LocalContext.current
@@ -308,7 +313,19 @@ class MainActivity : ComponentActivity() {
                 
                 // Selected Distro for Wizard/Settings
                 var selectedDistro by remember { mutableStateOf<com.ivarna.nativecode.core.data.Distro?>(null) }
-                
+
+                // Command to auto-run in the internal terminal (set before navigating to TERMUX_TERMINAL)
+                var terminalInstallCommand by remember { mutableStateOf<String?>(null) }
+                // How many steps the install script contains (for progress bar)
+                var terminalInstallSteps by remember { mutableStateOf(1) }
+                var terminalInstallTitle by remember { mutableStateOf("Installing…") }
+                // Distro being installed (for completion callback)
+                var terminalInstallDistroId by remember { mutableStateOf<String?>(null) }
+                // Bump each navigation so TermuxTerminalScreen opens a new hub tab
+                var terminalOpenEpoch by remember { mutableStateOf(0L) }
+                // Component id being installed via internal terminal (for mark-installed on complete)
+                var terminalInstallComponentId by remember { mutableStateOf<String?>(null) }
+
                 // Refresh key to force UI update on resume
                 // Collected from StateManager for remote triggers too
                 val refreshKey by com.ivarna.nativecode.core.utils.StateManager.refreshTrigger.collectAsState()
@@ -324,6 +341,33 @@ class MainActivity : ComponentActivity() {
                     }
                     lifecycleOwner.lifecycle.addObserver(observer)
                     onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+                }
+
+                fun launchInternalTerminal(
+                    command: String,
+                    title: String,
+                    steps: Int = 1,
+                    distroId: String? = null,
+                    componentId: String? = null,
+                ) {
+                    try {
+                        com.ivarna.nativecode.core.data.ScriptManager(this@MainActivity)
+                            .deployLaunchScriptsToHome()
+                    } catch (_: Exception) {}
+                    terminalInstallCommand = command
+                    terminalInstallTitle = title
+                    terminalInstallSteps = steps
+                    terminalInstallDistroId = distroId
+                    terminalInstallComponentId = componentId
+                    terminalOpenEpoch++
+                    currentScreen = Screen.TERMUX_TERMINAL
+                }
+
+                // Bind Activity queue processor → Compose navigation
+                SideEffect {
+                    openInternalTerminal = { cmd, title, steps, distroId, componentId ->
+                        launchInternalTerminal(cmd, title, steps, distroId, componentId)
+                    }
                 }
                 
                 // Helpers for service/activity
@@ -346,26 +390,49 @@ class MainActivity : ComponentActivity() {
 
 
                 val onInstallComponentStub: (com.ivarna.nativecode.core.data.DistroComponent, Map<String, String>) -> Unit = { component, extraEnv ->
-                    val distroId = selectedDistro?.id ?: "debian"
-                    if (permissionState.status.isGranted) {
+                    val distroId = selectedDistro?.id
+                        ?: com.ivarna.nativecode.core.data.DistroRepository.supportedDistros
+                            .firstOrNull { it.id == "debian" }?.id
+                        ?: "debian"
+                    val scriptName = component.scriptName
+                    if (scriptName.isNullOrBlank()) {
+                        android.widget.Toast.makeText(
+                            this@MainActivity,
+                            "No install script for ${component.name}",
+                            android.widget.Toast.LENGTH_SHORT
+                        ).show()
+                    } else {
                         lifecycleScope.launch(kotlinx.coroutines.Dispatchers.IO) {
-                            val queueManager = com.ivarna.nativecode.core.utils.InstallationQueueManager
-                            queueManager.clear()
-                            val task = com.ivarna.nativecode.core.utils.InstallTask(
-                                id = component.id,
-                                name = component.name,
-                                type = com.ivarna.nativecode.core.utils.TaskType.COMPONENT,
-                                scriptName = component.scriptName,
-                                distroId = distroId,
-                                extraEnv = extraEnv
-                            )
-                            queueManager.enqueue(listOf(task))
-                            withContext(kotlinx.coroutines.Dispatchers.Main) {
-                                processNextInstallTask()
+                            try {
+                                val scriptManager = com.ivarna.nativecode.core.data.ScriptManager(this@MainActivity)
+                                val scriptContent = scriptManager.getScriptContent(scriptName)
+                                val command = com.ivarna.nativecode.core.data.TermuxIntentFactory
+                                    .buildRunFeatureScriptCommand(
+                                        distroId = distroId,
+                                        scriptContent = scriptContent,
+                                        callbackName = component.id,
+                                        extraEnv = extraEnv,
+                                    )
+                                withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                    launchInternalTerminal(
+                                        command = command,
+                                        title = "Installing ${component.name}",
+                                        steps = 1,
+                                        distroId = distroId,
+                                        componentId = component.id,
+                                    )
+                                }
+                            } catch (e: Exception) {
+                                android.util.Log.e("NativeCode", "Component install prepare failed", e)
+                                withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                    android.widget.Toast.makeText(
+                                        this@MainActivity,
+                                        "Failed: ${e.message}",
+                                        android.widget.Toast.LENGTH_LONG
+                                    ).show()
+                                }
                             }
                         }
-                    } else {
-                        permissionState.launchPermissionRequest()
                     }
                 }
                 
@@ -397,7 +464,40 @@ class MainActivity : ComponentActivity() {
                             onNavigateToInstall = onNavigateToInstall,
                             onNavigateToSettings = onNavigateToDistroSettings,
                             onNavigateToSettingsScreen = { currentScreen = Screen.SETTINGS },
-                            onNavigateToTerminal = { currentScreen = Screen.TERMUX_TERMINAL },
+                            onNavigateToTerminal = { cmd ->
+                                // Always redeploy launch scripts from assets → termux-home
+                                try {
+                                    com.ivarna.nativecode.core.data.ScriptManager(this@MainActivity)
+                                        .deployLaunchScriptsToHome()
+                                } catch (e: Exception) {
+                                    android.util.Log.w("NativeCode", "Script redeploy skipped: ${e.message}")
+                                }
+
+                                // XFCE/KDE: show Terminal first; X11 opens after script prints "X11 ready"
+                                val isGui = cmd != null && cmd.contains("start_gui")
+                                if (isGui) {
+                                    // Pre-start embedded X server outside proot (socket ready for script)
+                                    Thread({
+                                        try {
+                                            com.ivarna.nativecode.core.termux.GuiSessionLauncher
+                                                .ensureXServer(this@MainActivity)
+                                        } catch (e: Exception) {
+                                            android.util.Log.e("NativeCode", "ensureXServer: ${e.message}", e)
+                                        }
+                                    }, "x11-prestart").apply { isDaemon = true }.start()
+                                }
+
+                                terminalInstallCommand = cmd
+                                terminalInstallSteps = 0
+                                terminalInstallTitle = when {
+                                    isGui -> "Launching desktop…"
+                                    cmd == null -> "Terminal"
+                                    else -> "Launching…"
+                                }
+                                terminalInstallDistroId = null
+                                terminalOpenEpoch++
+                                currentScreen = Screen.TERMUX_TERMINAL
+                            },
                             onInstallComponent = onInstallComponentStub,
                             onLaunchTool = { tool, path ->
                                 val intent = when (tool.type) {
@@ -436,11 +536,19 @@ class MainActivity : ComponentActivity() {
                             },
                             onNavigateToTroubleshooting = { currentScreen = Screen.TROUBLESHOOTING },
                             onNavigateToRootCheck = { currentScreen = Screen.ROOT_ACCESS },
-                            onThemeChanged = { newMode -> 
+                            onThemeChanged = { newMode ->
                                 themePrefs.setThemeMode(newMode)
-                                currentThemeMode = newMode 
+                                currentThemeMode = newMode
                             },
-                            currentTheme = currentThemeMode
+                            currentTheme = currentThemeMode,
+                            onNavigateToTerminal = { cmd ->
+                                terminalInstallCommand = cmd
+                                terminalInstallSteps = 0
+                                terminalInstallTitle = "Setup"
+                                terminalInstallDistroId = null
+                                terminalOpenEpoch++
+                                currentScreen = Screen.TERMUX_TERMINAL
+                            }
                         )
                     }
                     Screen.TROUBLESHOOTING -> {
@@ -466,53 +574,176 @@ class MainActivity : ComponentActivity() {
                                  onBack = { currentScreen = Screen.HOME },
                                  hazeState = hazeState,
                                  onInstallStart = { components, theme, gpu, desktopEnv ->
-                                     if (permissionState.status.isGranted) {
-                                         lifecycleScope.launch(kotlinx.coroutines.Dispatchers.IO) {
-                                              withContext(kotlinx.coroutines.Dispatchers.Main) {
-                                                  android.widget.Toast.makeText(this@MainActivity, "Preparing Queue...", android.widget.Toast.LENGTH_SHORT).show()
-                                              }
-                                              val queueManager = com.ivarna.nativecode.core.utils.InstallationQueueManager
-                                              queueManager.clear()
-                                              val tasks = mutableListOf<com.ivarna.nativecode.core.utils.InstallTask>()
-                                              tasks.add(com.ivarna.nativecode.core.utils.InstallTask(id = "base_install", name = "Base System Install", type = com.ivarna.nativecode.core.utils.TaskType.BASE_INSTALL, isManual = true, distroId = selectedDistro!!.id, extraEnv = mapOf("FLUX_THEME" to theme, "FLUX_GPU" to gpu, "FLUX_DESKTOP_ENV" to desktopEnv)))
-                                              if (selectedDistro!!.id != "termux") {
-                                                  tasks.add(com.ivarna.nativecode.core.utils.InstallTask(id = "hw_accel", name = "Hardware Acceleration", type = com.ivarna.nativecode.core.utils.TaskType.COMPONENT, scriptName = "common/setup_hw_accel_debian.sh", distroId = selectedDistro!!.id, extraEnv = mapOf("FLUX_GPU" to gpu)))
-                                              }
-                                              if (desktopEnv == "KDE") {
-                                                  selectedDistro!!.components.find { it.id == "kde_plasma" }?.let { comp ->
-                                                      tasks.add(com.ivarna.nativecode.core.utils.InstallTask(id = comp.id, name = comp.name, type = com.ivarna.nativecode.core.utils.TaskType.COMPONENT, scriptName = comp.scriptName, distroId = selectedDistro!!.id, extraEnv = emptyMap()))
-                                                  }
-                                              }
-                                              components.filter { it.id !in setOf("hw_accel", "kde_plasma") }.forEach { comp ->
-                                                  tasks.add(com.ivarna.nativecode.core.utils.InstallTask(id = comp.id, name = comp.name, type = com.ivarna.nativecode.core.utils.TaskType.COMPONENT, scriptName = comp.scriptName, distroId = selectedDistro!!.id, extraEnv = mapOf("FLUX_THEME" to theme)))
-                                              }
-                                              queueManager.enqueue(tasks)
-                                              val firstTask = queueManager.next()
-                                              if (firstTask != null && firstTask.type == com.ivarna.nativecode.core.utils.TaskType.BASE_INSTALL) {
-                                                   val script = com.ivarna.nativecode.core.data.TermuxIntentFactory.getBaseInstallScript(this@MainActivity, selectedDistro!!)
-                                                   withContext(kotlinx.coroutines.Dispatchers.Main) {
-                                                         val server = com.ivarna.nativecode.core.utils.LocalInstallServer()
-                                                         lifecycleScope.launch(kotlinx.coroutines.Dispatchers.IO) {
-                                                             val port = server.start(script)
-                                                             withContext(kotlinx.coroutines.Dispatchers.Main) {
-                                                                  val exports = "FLUX_THEME=$theme FLUX_GPU=$gpu"
-                                                                  val isChroot = selectedDistro!!.chrootSupported && !selectedDistro!!.prootSupported
-                                                                  val clipboard = getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                                                                  if (isChroot) {
-                                                                       val chrootCommand = "curl -L -o install.sh http://127.0.0.1:$port/install && $exports sh install.sh"
-                                                                       clipboard.setPrimaryClip(android.content.ClipData.newPlainText("NativeCode Install", chrootCommand))
-                                                                       android.app.AlertDialog.Builder(this@MainActivity).setTitle("⚠️ Root Required").setMessage("1. Open Termux\n2. Type 'su'\n3. Paste & Run command.").setPositiveButton("Open Termux") { _, _ -> server.onDownload = { server.stop() }; com.ivarna.nativecode.core.data.TermuxIntentFactory.buildOpenTermuxIntent(this@MainActivity)?.let { startActivity(it) }; currentScreen = Screen.HOME }.setNegativeButton("Cancel") { _, _ -> server.stop() }.show()
-                                                                  } else {
-                                                                       val installCommand = "pkg update -y && pkg install curl -y && curl -L -o install.sh http://127.0.0.1:$port/install && $exports bash install.sh"
-                                                                       clipboard.setPrimaryClip(android.content.ClipData.newPlainText("NativeCode Install", installCommand))
-                                                                       android.app.AlertDialog.Builder(this@MainActivity).setTitle("Phase 1: Base Install").setMessage("1. Open Termux\n2. Paste command.").setPositiveButton("Open Termux") { _, _ -> server.onDownload = { server.stop() }; com.ivarna.nativecode.core.data.TermuxIntentFactory.buildOpenTermuxIntent(this@MainActivity)?.let { startActivity(it) }; currentScreen = Screen.HOME }.setNegativeButton("Cancel") { _, _ -> server.stop() }.show()
-                                                                  }
-                                                             }
-                                                         }
-                                                   }
-                                              }
+                                     lifecycleScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                                         try {
+                                             val distro = selectedDistro ?: return@launch
+                                             val isChroot = distro.chrootSupported && !distro.prootSupported
+                                             val scriptManager = com.ivarna.nativecode.core.data.ScriptManager(this@MainActivity)
+
+                                             // ── Env exports header ──────────────────────────────────────
+                                             val header = """
+                                                 #!/bin/bash
+                                                 export FLUX_THEME="$theme"
+                                                 export FLUX_GPU="$gpu"
+                                                 export FLUX_DESKTOP_ENV="$desktopEnv"
+                                                 export DEBIAN_FRONTEND=noninteractive
+
+                                                 CURRENT_STEP=1
+                                                 log_step() {
+                                                     echo -e "\n\033[1;36m[STEP ${'$'}{CURRENT_STEP}] ${'$'}1\033[0m"
+                                                     ((CURRENT_STEP++))
+                                                 }
+                                             """.trimIndent() + "\n\n"
+
+                                             val sb = StringBuilder(header)
+                                             var stepCount = 0
+
+                                             if (!isChroot) {
+                                                 // Step 1: Termux dependencies (setup_termux.sh stripped of shebang/markers)
+                                                 sb.append("log_step \"Setting up Termux Dependencies...\"\n")
+                                                 stepCount++
+                                                 var termuxSetup = scriptManager.getScriptContent("common/setup_termux.sh")
+                                                 termuxSetup = termuxSetup
+                                                     .replace("#!/bin/bash", "")
+                                                     .replace(Regex("""if \[ -f "\${'$'}MARKER_FILE" \]; then[\s\S]*?fi\n?"""), "")
+                                                     .replace(Regex("am start.*\n?"), "")
+                                                     .replace(Regex("trap.*\n?"), "")
+                                                 sb.append(termuxSetup).append("\n\n")
+
+                                                 // Step 2: proot-distro install
+                                                 sb.append("log_step \"Downloading & Installing ${distro.name} image...\"\n")
+                                                 stepCount++
+                                                 sb.append("proot-distro install ${distro.id} 2>/dev/null || echo '${distro.name} image already present'\n\n")
+
+                                                 // Step 3: Base distro config (setup_debian_family.sh etc.) inside proot
+                                                 val baseScript = when (distro.id) {
+                                                     "archlinux" -> "common/setup_arch_family.sh"
+                                                     "alpine"    -> "common/setup_alpine_family.sh"
+                                                     else        -> "common/setup_debian_family.sh"
+                                                 }
+                                                 sb.append("log_step \"Configuring ${distro.name} base system...\"\n")
+                                                 stepCount++
+                                                 val baseConfigB64 = android.util.Base64.encodeToString(
+                                                     scriptManager.getScriptContent(baseScript).toByteArray(), android.util.Base64.NO_WRAP)
+                                                 sb.append("echo '$baseConfigB64' | base64 -d > \$HOME/flux_base_setup.sh\n")
+                                                 sb.append("chmod +x \$HOME/flux_base_setup.sh\n")
+                                                 sb.append("proot-distro login ${distro.id} --shared-tmp -- bash -c \"export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin FLUX_THEME=$theme FLUX_GPU=$gpu && bash /data/data/com.termux/files/home/flux_base_setup.sh\"\n")
+                                                 sb.append("rm -f \$HOME/flux_base_setup.sh\n\n")
+
+                                                 // Step 4+: Selected components
+                                                 for (comp in components.filter { it.id !in setOf("hw_accel") }) {
+                                                     if (comp.scriptName != null) {
+                                                         sb.append("log_step \"Installing ${comp.name}...\"\n")
+                                                         stepCount++
+                                                         val compB64 = android.util.Base64.encodeToString(
+                                                             scriptManager.getScriptContent(comp.scriptName!!).toByteArray(), android.util.Base64.NO_WRAP)
+                                                         sb.append("echo '$compB64' | base64 -d > \$HOME/comp_setup.sh\n")
+                                                         sb.append("chmod +x \$HOME/comp_setup.sh\n")
+                                                         sb.append("proot-distro login ${distro.id} --shared-tmp -- bash -c \"export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin FLUX_THEME=$theme && bash /data/data/com.termux/files/home/comp_setup.sh\"\n")
+                                                         sb.append("rm -f \$HOME/comp_setup.sh\n\n")
+                                                     }
+                                                 }
+
+                                                 // Deploy GUI launch scripts (same assets as ScriptManager.deployLaunchScriptsToHome)
+                                                 sb.append("log_step \"Deploying launch scripts...\"\n")
+                                                 stepCount++
+                                                 sb.append(scriptManager.buildDeployLaunchScriptsShell())
+                                                 // Also write immediately into app termux-home (host side, no shell)
+                                                 scriptManager.deployLaunchScriptsToHome()
+                                             } else {
+                                                 // ── Chroot path (debian13_chroot / debian_chroot) ──
+                                                 // Must run as real root (su). Script installs under /data/local/tmp.
+                                                 val chrootSetup = when (distro.id) {
+                                                     "debian13_chroot" -> "chroot/setup_debian13_chroot.sh"
+                                                     "debian_chroot" -> "chroot/setup_debian_chroot.sh"
+                                                     "arch_chroot" -> "chroot/setup_arch_chroot.sh"
+                                                     else -> "chroot/setup_debian13_chroot.sh"
+                                                 }
+                                                 sb.append("log_step \"Installing chroot rootfs ($chrootSetup)...\"\n")
+                                                 stepCount++
+                                                 val chrootB64 = android.util.Base64.encodeToString(
+                                                     scriptManager.getScriptContent(chrootSetup).toByteArray(),
+                                                     android.util.Base64.NO_WRAP
+                                                 )
+                                                 sb.append("echo '$chrootB64' | base64 -d > /data/local/tmp/nativecode_chroot_setup.sh\n")
+                                                 sb.append("chmod +x /data/local/tmp/nativecode_chroot_setup.sh\n")
+                                                 sb.append("sh /data/local/tmp/nativecode_chroot_setup.sh\n")
+                                                 sb.append("rm -f /data/local/tmp/nativecode_chroot_setup.sh\n\n")
+
+                                                 // Optional XFCE chroot helper
+                                                 try {
+                                                     val xfceSetup = scriptManager.getScriptContent("chroot/setup_xfce_chroot.sh")
+                                                     if (xfceSetup.isNotBlank()) {
+                                                         sb.append("log_step \"Installing XFCE in chroot...\"\n")
+                                                         stepCount++
+                                                         val xfceB64 = android.util.Base64.encodeToString(
+                                                             xfceSetup.toByteArray(), android.util.Base64.NO_WRAP
+                                                         )
+                                                         sb.append("echo '$xfceB64' | base64 -d > /data/local/tmp/nativecode_xfce_chroot.sh\n")
+                                                         sb.append("chmod +x /data/local/tmp/nativecode_xfce_chroot.sh\n")
+                                                         sb.append("sh /data/local/tmp/nativecode_xfce_chroot.sh || true\n")
+                                                         sb.append("rm -f /data/local/tmp/nativecode_xfce_chroot.sh\n\n")
+                                                     }
+                                                 } catch (_: Exception) {}
+                                             }
+
+                                             sb.append("\necho -e \"\\n\\033[1;32m✅ Installation complete! Restart the app to launch.\\033[0m\\n\"\n")
+
+                                             val fullScript = sb.toString()
+
+                                             if (isChroot) {
+                                                 // Write install script to bootstrap home; run via internal terminal + su
+                                                 val homeDir = com.ivarna.nativecode.core.termux.TermuxBootstrapManager
+                                                     .homeDir(this@MainActivity)
+                                                 val scriptFile = java.io.File(homeDir, "install_chroot_${distro.id}.sh")
+                                                 scriptFile.writeText(fullScript)
+                                                 scriptFile.setExecutable(true)
+                                                 // Host path is bound as /data/data/com.termux/files/home inside bootstrap
+                                                 val runCmd = """
+                                                     echo "NativeCode: Chroot install needs root (Magisk)…"
+                                                     su -c "bash /data/data/com.termux/files/home/install_chroot_${distro.id}.sh"
+                                                     ec=${'$'}?
+                                                     if [ ${'$'}ec -eq 0 ]; then
+                                                       echo -e "\n\033[1;32m✅ Installation complete!\033[0m"
+                                                     else
+                                                       echo -e "\n\033[1;31m❌ Install failed (exit ${'$'}ec). Is Magisk/root granted?\033[0m"
+                                                     fi
+                                                 """.trimIndent()
+                                                 withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                                     launchInternalTerminal(
+                                                         command = runCmd,
+                                                         title = "Install ${distro.name} (chroot)",
+                                                         steps = stepCount.coerceAtLeast(1),
+                                                         distroId = distro.id,
+                                                         componentId = null,
+                                                     )
+                                                 }
+                                             } else {
+                                                 // Delete old marker so setup_termux runs fresh
+                                                 val homeDir = com.ivarna.nativecode.core.termux.TermuxBootstrapManager.homeDir(this@MainActivity)
+                                                 java.io.File(homeDir, ".nativecode/setup_termux.done").delete()
+
+                                                 // Write script directly to bootstrap home (~/install_nativecode.sh inside proot)
+                                                 val scriptFile = java.io.File(homeDir, "install_nativecode.sh")
+                                                 scriptFile.writeText(fullScript)
+                                                 scriptFile.setExecutable(true)
+
+                                                 withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                                     terminalInstallTitle  = "Installing ${distro.name}"
+                                                     terminalInstallSteps  = stepCount
+                                                     terminalInstallCommand = "bash ~/install_nativecode.sh"
+                                                     terminalInstallDistroId = distro.id
+                                                     terminalOpenEpoch++
+                                                     currentScreen = Screen.TERMUX_TERMINAL
+                                                 }
+                                             }
+                                         } catch (e: Exception) {
+                                             android.util.Log.e("NativeCode", "Failed to prepare install", e)
+                                             withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                                 android.widget.Toast.makeText(this@MainActivity, "Failed to prepare install: ${e.message}", android.widget.Toast.LENGTH_LONG).show()
+                                             }
                                          }
-                                     } else permissionState.launchPermissionRequest()
+                                     }
                                  }
                              )
                          } else currentScreen = Screen.HOME
@@ -525,11 +756,27 @@ class MainActivity : ComponentActivity() {
                                 onBack = { currentScreen = Screen.HOME },
                                 onInstallComponent = onInstallComponentStub,
                                 onUninstallDistro = {
-                                    onStartServiceStub(com.ivarna.nativecode.core.data.TermuxIntentFactory.buildUninstallIntent(selectedDistro!!.id))
-                                    currentScreen = Screen.HOME
+                                    val id = selectedDistro!!.id
+                                    val cmd = com.ivarna.nativecode.core.data.TermuxIntentFactory
+                                        .buildUninstallCommand(id)
+                                    launchInternalTerminal(
+                                        command = cmd,
+                                        title = "Uninstalling $id",
+                                        steps = 1,
+                                        distroId = id,
+                                        componentId = "distro_uninstall_$id",
+                                    )
                                 },
                                 onReinstallDistro = {
                                     selectedDistro?.let { onNavigateToInstall(it) }
+                                },
+                                onNavigateToTerminal = { cmd ->
+                                    launchInternalTerminal(
+                                        command = cmd ?: "true",
+                                        title = if (cmd == null) "Terminal" else "Running…",
+                                        steps = 0,
+                                        distroId = selectedDistro?.id,
+                                    )
                                 },
                                 onStartActivity = onStartActivityStub,
                                 hazeState = hazeState
@@ -545,7 +792,60 @@ class MainActivity : ComponentActivity() {
                     }
                     Screen.TERMUX_TERMINAL -> {
                         com.ivarna.nativecode.ui.screens.TermuxTerminalScreen(
-                            onBack = { currentScreen = Screen.HOME }
+                            onBack = {
+                                terminalInstallCommand = null
+                                terminalInstallSteps = 1
+                                terminalInstallTitle = "Installing…"
+                                terminalInstallDistroId = null
+                                terminalInstallComponentId = null
+                                currentScreen = Screen.HOME
+                            },
+                            initialCommand = terminalInstallCommand,
+                            installTitle = terminalInstallTitle,
+                            totalSteps = terminalInstallSteps,
+                            openEpoch = terminalOpenEpoch,
+                            onInstallComplete = {
+                                val distroId = terminalInstallDistroId
+                                val componentId = terminalInstallComponentId
+                                if (componentId != null && componentId.startsWith("distro_uninstall_") && distroId != null) {
+                                    com.ivarna.nativecode.core.utils.StateManager.clearDistroState(
+                                        this@MainActivity, distroId
+                                    )
+                                    android.widget.Toast.makeText(
+                                        this@MainActivity, "$distroId uninstalled", android.widget.Toast.LENGTH_SHORT
+                                    ).show()
+                                } else if (componentId != null && distroId != null) {
+                                    com.ivarna.nativecode.core.utils.StateManager.setComponentInstalled(
+                                        this@MainActivity, distroId, componentId, true
+                                    )
+                                    com.ivarna.nativecode.core.utils.StateManager.setScriptStatus(
+                                        this@MainActivity, componentId, true
+                                    )
+                                    android.widget.Toast.makeText(
+                                        this@MainActivity, "Installed $componentId", android.widget.Toast.LENGTH_SHORT
+                                    ).show()
+                                } else if (distroId != null) {
+                                    com.ivarna.nativecode.core.utils.StateManager.setDistroInstalled(
+                                        this@MainActivity, distroId, true
+                                    )
+                                }
+                                com.ivarna.nativecode.core.utils.StateManager.triggerRefresh()
+                                // Continue queue (if any) then home
+                                lifecycleScope.launch {
+                                    kotlinx.coroutines.delay(1500L)
+                                    val qm = com.ivarna.nativecode.core.utils.InstallationQueueManager
+                                    if (qm.hasPending()) {
+                                        processNextInstallTask()
+                                    } else {
+                                        terminalInstallCommand = null
+                                        terminalInstallSteps = 1
+                                        terminalInstallTitle = "Installing…"
+                                        terminalInstallDistroId = null
+                                        terminalInstallComponentId = null
+                                        currentScreen = Screen.HOME
+                                    }
+                                }
+                            }
                         )
                     }
                     Screen.X11_DISPLAY -> {

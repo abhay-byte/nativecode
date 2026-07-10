@@ -62,7 +62,8 @@ fun SettingsScreen(
     onNavigateToTroubleshooting: (() -> Unit)? = null,
     onNavigateToRootCheck: (() -> Unit)? = null,
     onThemeChanged: ((ThemeMode) -> Unit)? = null,
-    currentTheme: ThemeMode = ThemeMode.SYSTEM
+    currentTheme: ThemeMode = ThemeMode.SYSTEM,
+    onNavigateToTerminal: (command: String?) -> Unit = {}
 ) {
     val context = LocalContext.current
     
@@ -163,37 +164,18 @@ fun SettingsScreen(
                             // Setup Environment Button
                             Button(
                                 onClick = {
-                                    if (permissionState.status.isGranted) {
-                                        val scriptManager = ScriptManager(context)
-                                        val setupScript = scriptManager.getScriptContent("common/setup_termux.sh")
-                                        val fluxInstallScript = scriptManager.getScriptContent("common/flux_install.sh")
-                                        val startGuiScript = scriptManager.getScriptContent("common/start_gui.sh")
-                                        
-                                        val compositeCommand = buildString {
-                                            append("cat << 'EOF_FLUX' > \$HOME/flux_install.sh\n")
-                                            append(fluxInstallScript)
-                                            append("\nEOF_FLUX\n")
-                                            append("chmod +x \$HOME/flux_install.sh\n\n")
-                                            
-                                            append("cat << 'EOF_GUI' > \$HOME/start_gui.sh\n")
-                                            append(startGuiScript)
-                                            append("\nEOF_GUI\n")
-                                            append("chmod +x \$HOME/start_gui.sh\n\n")
-                                            
-                                            append("rm -f \$HOME/.nativecode/setup_termux.done\n")
-                                            append(setupScript)
-                                        }
-                                        
-                                        val intent = TermuxIntentFactory.buildRunCommandIntent(compositeCommand)
-                                        try {
-                                            onStartService(intent)
-                                            android.widget.Toast.makeText(context, "Initializing Environment...", android.widget.Toast.LENGTH_SHORT).show()
-                                        } catch (e: Exception) {
-                                            android.util.Log.e("NativeCode", "Setup failed", e)
-                                        }
-                                    } else {
-                                        permissionState.launchPermissionRequest()
+                                    val scriptManager = ScriptManager(context)
+                                    val homeDir = com.ivarna.nativecode.core.termux.TermuxBootstrapManager.homeDir(context)
+                                    val setupScript = scriptManager.getScriptContent("common/setup_termux.sh")
+                                        .replace("#!/bin/bash", "")
+                                        .replace(Regex("am start.*\n?"), "")
+                                        .replace(Regex("trap.*\n?"), "")
+                                    val fullScript = "#!/bin/bash\nrm -f \$HOME/.nativecode/setup_termux.done\n" + setupScript +
+                                        "\necho -e \"\\n\\033[1;32m✅ Environment initialized!\\033[0m\\n\""
+                                    java.io.File(homeDir, "install_nativecode.sh").also {
+                                        it.writeText(fullScript); it.setExecutable(true)
                                     }
+                                    onNavigateToTerminal("bash ~/install_nativecode.sh")
                                 },
                                 shape = RoundedCornerShape(50),
                                 colors = ButtonDefaults.buttonColors(
@@ -227,21 +209,17 @@ fun SettingsScreen(
                             // Tweaks Button
                              Button(
                                 onClick = {
-                                    if (permissionState.status.isGranted) {
-                                        val scriptManager = ScriptManager(context)
-                                        val tweaksScript = scriptManager.getScriptContent("common/termux_tweaks.sh")
-                                        val forceTweaksScript = "rm -f \$HOME/.nativecode/termux_tweaks.done\n" + tweaksScript
-                                        val copyCmd = "cat > \$HOME/termux_tweaks.sh << 'TWEAKS_EOF'\n$forceTweaksScript\nTWEAKS_EOF\nchmod +x \$HOME/termux_tweaks.sh && bash \$HOME/termux_tweaks.sh"
-                                        val intent = TermuxIntentFactory.buildRunCommandIntent(copyCmd)
-                                        try {
-                                            onStartService(intent)
-                                            android.widget.Toast.makeText(context, "Applying Termux Tweaks...", android.widget.Toast.LENGTH_LONG).show()
-                                        } catch (e: Exception) {
-                                            android.util.Log.e("NativeCode", "Tweaks failed", e)
-                                        }
-                                    } else {
-                                        permissionState.launchPermissionRequest()
+                                    val scriptManager = ScriptManager(context)
+                                    val homeDir = com.ivarna.nativecode.core.termux.TermuxBootstrapManager.homeDir(context)
+                                    val tweaksScript = scriptManager.getScriptContent("common/termux_tweaks.sh")
+                                        .replace("#!/bin/bash", "")
+                                        .replace(Regex("am start.*\n?"), "")
+                                    val fullScript = "#!/bin/bash\nrm -f \$HOME/.nativecode/termux_tweaks.done\n" + tweaksScript +
+                                        "\necho -e \"\\n\\033[1;32m✅ Termux tweaks applied!\\033[0m\\n\""
+                                    java.io.File(homeDir, "install_nativecode.sh").also {
+                                        it.writeText(fullScript); it.setExecutable(true)
                                     }
+                                    onNavigateToTerminal("bash ~/install_nativecode.sh")
                                 },
                                 shape = RoundedCornerShape(50),
                                 colors = ButtonDefaults.buttonColors(

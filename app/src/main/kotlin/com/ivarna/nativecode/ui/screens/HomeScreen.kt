@@ -72,7 +72,7 @@ fun HomeScreen(
     onNavigateToInstall: (Distro) -> Unit,
     onNavigateToSettings: (Distro) -> Unit,
     onNavigateToSettingsScreen: () -> Unit,
-    onNavigateToTerminal: () -> Unit = {},
+    onNavigateToTerminal: (command: String?) -> Unit = {},
     onLaunchTool: (InstalledTool, String) -> Unit,
     onInstallComponent: (DistroComponent, Map<String, String>) -> Unit
 ) {
@@ -106,8 +106,14 @@ fun HomeScreen(
     var sharedImageUri by remember { mutableStateOf<Uri?>(null) }
 
     val debianDistro = remember { DistroRepository.supportedDistros.find { it.id == "debian" }!! }
+    val chrootDebianDistro = remember {
+        DistroRepository.supportedDistros.find { it.id == "debian13_chroot" }!!
+    }
     val isInstalled = remember(refreshKey.value, scriptRefreshTrigger) {
         StateManager.isDistroInstalled(context, debianDistro.id)
+    }
+    val isChrootInstalled = remember(refreshKey.value, scriptRefreshTrigger) {
+        StateManager.isDistroInstalled(context, chrootDebianDistro.id)
     }
     
     // Collect operation results from StateManager
@@ -225,7 +231,27 @@ fun HomeScreen(
                         }
                     }
 
-                    IconButton(onClick = onNavigateToTerminal) {
+                    IconButton(onClick = {
+                        // Open embedded X11 display (same package, no second launcher icon)
+                        try {
+                            com.ivarna.nativecode.core.termux.GuiSessionLauncher
+                                .openX11Activity(context)
+                        } catch (e: Exception) {
+                            android.util.Log.e("HomeScreen", "Open X11 failed", e)
+                            android.widget.Toast.makeText(
+                                context,
+                                "X11: ${e.message}",
+                                android.widget.Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    }) {
+                        Icon(
+                            Icons.Default.DesktopWindows,
+                            contentDescription = "X11 Display",
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                    IconButton(onClick = { onNavigateToTerminal(null) }) {
                         Icon(Icons.Default.Terminal, contentDescription = "Terminal", tint = MaterialTheme.colorScheme.onSurface)
                     }
                     IconButton(onClick = onNavigateToSettingsScreen) {
@@ -250,15 +276,82 @@ fun HomeScreen(
                     guiRunningType = StateManager.getGuiRunningType(context, debianDistro.id),
                     kdeInstalled = StateManager.isComponentInstalled(context, debianDistro.id, "kde_plasma"),
                     onInstall = { onNavigateToInstall(debianDistro) },
-                    onLaunchCli = { onNavigateToTerminal() },
-                    onLaunchXfce = { if (permissionState.status.isGranted) { onStartService(TermuxIntentFactory.buildLaunchGuiIntent(debianDistro.id)); StateManager.setGuiRunning(context, debianDistro.id, true); StateManager.setGuiRunningType(context, debianDistro.id, "xfce4"); val intent = context.packageManager.getLaunchIntentForPackage("com.termux.x11"); if (intent != null) { context.startActivity(intent); com.ivarna.nativecode.core.utils.TermuxX11Preferences.applyToTermux(context) } } else permissionState.launchPermissionRequest() },
-                    onLaunchKde = { if (permissionState.status.isGranted) { onStartService(TermuxIntentFactory.buildLaunchKdeGuiIntent(context, debianDistro.id)); StateManager.setGuiRunning(context, debianDistro.id, true); StateManager.setGuiRunningType(context, debianDistro.id, "kde"); val intent = context.packageManager.getLaunchIntentForPackage("com.termux.x11"); if (intent != null) { context.startActivity(intent); com.ivarna.nativecode.core.utils.TermuxX11Preferences.applyToTermux(context) } } else permissionState.launchPermissionRequest() },
-                    onStop = { val runningType = StateManager.getGuiRunningType(context, debianDistro.id); val intent = if (runningType == "kde") TermuxIntentFactory.buildStopKdeGuiIntent(debianDistro.id) else TermuxIntentFactory.buildStopGuiIntent(debianDistro.id); onStartService(intent); StateManager.setGuiRunning(context, debianDistro.id, false); StateManager.setGuiRunningType(context, debianDistro.id, "") },
-                    onOpenX11 = { val intent = context.packageManager.getLaunchIntentForPackage("com.termux.x11"); if (intent != null) context.startActivity(intent) },
+                    onLaunchCli = { onNavigateToTerminal("proot-distro login ${debianDistro.id}") },
+                    onLaunchXfce = {
+                        StateManager.setGuiRunning(context, debianDistro.id, true)
+                        StateManager.setGuiRunningType(context, debianDistro.id, "xfce")
+                        onNavigateToTerminal("bash ~/start_gui.sh ${debianDistro.id}")
+                    },
+                    onLaunchKde = {
+                        StateManager.setGuiRunning(context, debianDistro.id, true)
+                        StateManager.setGuiRunningType(context, debianDistro.id, "kde")
+                        onNavigateToTerminal("bash ~/start_gui_kde.sh ${debianDistro.id}")
+                    },
+                    onStop = {
+                        StateManager.setGuiRunning(context, debianDistro.id, false)
+                        StateManager.setGuiRunningType(context, debianDistro.id, "")
+                        try {
+                            com.ivarna.nativecode.core.termux.GuiSessionLauncher.stopAll()
+                        } catch (_: Exception) {}
+                        // Run stop_gui.sh in internal terminal (same as start path)
+                        onNavigateToTerminal("bash ~/stop_gui.sh ${debianDistro.id}")
+                    },
+                    onOpenX11 = {
+                        // Open embedded NativeCode X11 display (not external com.termux.x11 package)
+                        com.ivarna.nativecode.core.termux.GuiSessionLauncher.openX11Activity(context)
+                    },
                     onSettings = { onNavigateToSettings(debianDistro) }
                 )
             }
 
+            // Debian chroot (rooted) — separate from proot Debian above
+            item {
+                ChrootDebianCard(
+                    distro = chrootDebianDistro,
+                    isInstalled = isChrootInstalled,
+                    isGuiRunning = StateManager.isGuiRunning(context, chrootDebianDistro.id),
+                    onInstall = { onNavigateToInstall(chrootDebianDistro) },
+                    onLaunchCli = {
+                        onNavigateToTerminal(
+                            "su -c 'sh /data/local/tmp/enter_debian13.sh' " +
+                                "|| su -c 'sh /data/local/tmp/enter_debian13_root.sh' " +
+                                "|| echo 'Chroot not ready — install first or check root.'"
+                        )
+                    },
+                    onLaunchGui = {
+                        StateManager.setGuiRunning(context, chrootDebianDistro.id, true)
+                        StateManager.setGuiRunningType(context, chrootDebianDistro.id, "xfce")
+                        // Pre-start embedded X, then chroot GUI helper (written by setup)
+                        Thread({
+                            try {
+                                com.ivarna.nativecode.core.termux.GuiSessionLauncher
+                                    .ensureXServer(context)
+                            } catch (_: Exception) {}
+                        }, "x11-chroot-pre").apply { isDaemon = true }.start()
+                        onNavigateToTerminal(
+                            "bash /data/local/tmp/start_debian13_gui.sh 2>/dev/null " +
+                                "|| su -c 'sh /data/local/tmp/start_debian13_gui.sh' " +
+                                "|| echo 'GUI helper missing — finish chroot install first.'"
+                        )
+                    },
+                    onStop = {
+                        StateManager.setGuiRunning(context, chrootDebianDistro.id, false)
+                        StateManager.setGuiRunningType(context, chrootDebianDistro.id, "")
+                        try {
+                            com.ivarna.nativecode.core.termux.GuiSessionLauncher.stopAll()
+                        } catch (_: Exception) {}
+                        onNavigateToTerminal(
+                            "bash /data/local/tmp/stop_debian13_gui.sh 2>/dev/null " +
+                                "|| su -c 'sh /data/local/tmp/stop_debian13_gui.sh' " +
+                                "|| true"
+                        )
+                    },
+                    onOpenX11 = {
+                        com.ivarna.nativecode.core.termux.GuiSessionLauncher.openX11Activity(context)
+                    },
+                    onSettings = { onNavigateToSettings(chrootDebianDistro) }
+                )
+            }
 
             if (isInstalled) {
                 item {
@@ -491,6 +584,172 @@ fun SettingsThemeOption(name: String, desc: String, id: String, selected: Boolea
 }
 
 @Composable
+fun ChrootDebianCard(
+    distro: Distro,
+    isInstalled: Boolean,
+    isGuiRunning: Boolean,
+    onInstall: () -> Unit,
+    onLaunchCli: () -> Unit,
+    onLaunchGui: () -> Unit,
+    onStop: () -> Unit,
+    onOpenX11: () -> Unit,
+    onSettings: () -> Unit,
+) {
+    val accent = Color(0xFFE65100) // root / power accent
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(28.dp))
+            .background(
+                Brush.linearGradient(
+                    colors = listOf(accent.copy(alpha = 0.14f), Color.Transparent)
+                )
+            )
+            .border(
+                1.dp,
+                Brush.verticalGradient(
+                    listOf(accent.copy(alpha = 0.4f), Color.Transparent)
+                ),
+                RoundedCornerShape(28.dp)
+            )
+            .padding(24.dp)
+    ) {
+        Column {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(64.dp)
+                        .clip(RoundedCornerShape(18.dp))
+                        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.4f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Image(
+                        painter = painterResource(id = R.drawable.distro_debian),
+                        contentDescription = null,
+                        modifier = Modifier.size(42.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(16.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        "Debian (Chroot / Root)",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        "Debian 13 Trixie · real root · max performance",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f)
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    if (isInstalled) MaterialTheme.colorScheme.primary
+                                    else accent
+                                )
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            if (isInstalled) "Installed & Ready" else "Requires Magisk / root",
+                            fontSize = 13.sp,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                        )
+                    }
+                }
+                IconButton(
+                    onClick = onSettings,
+                    modifier = Modifier
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f))
+                ) {
+                    Icon(
+                        Icons.Default.Settings,
+                        contentDescription = "Manage",
+                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(20.dp))
+            if (!isInstalled) {
+                Button(
+                    onClick = onInstall,
+                    modifier = Modifier.fillMaxWidth().height(56.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = accent),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Icon(Icons.Default.Security, contentDescription = null, modifier = Modifier.size(20.dp))
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text("Install Debian Chroot", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                }
+                Text(
+                    "Uses chroot under /data/local/tmp (not proot). Root required.",
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                    modifier = Modifier.padding(top = 10.dp)
+                )
+            } else {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    LaunchButton(
+                        modifier = Modifier.weight(1f),
+                        label = "Terminal",
+                        icon = Icons.Default.Code,
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        onClick = onLaunchCli
+                    )
+                    LaunchButton(
+                        modifier = Modifier.weight(1f),
+                        label = "XFCE4",
+                        icon = Icons.Default.DesktopWindows,
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        onClick = onLaunchGui
+                    )
+                }
+                if (isGuiRunning) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Button(
+                            onClick = onOpenX11,
+                            modifier = Modifier.weight(1.5f).height(48.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                            ),
+                            shape = RoundedCornerShape(14.dp)
+                        ) {
+                            Icon(Icons.Default.Visibility, null, Modifier.size(18.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text("Open Display", fontWeight = FontWeight.Bold)
+                        }
+                        Button(
+                            onClick = onStop,
+                            modifier = Modifier.weight(1f).height(48.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.errorContainer,
+                                contentColor = MaterialTheme.colorScheme.error
+                            ),
+                            shape = RoundedCornerShape(14.dp)
+                        ) {
+                            Text("Stop", fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
 fun DebianHeroCard(distro: Distro, isInstalled: Boolean, isGuiRunning: Boolean, guiRunningType: String, kdeInstalled: Boolean, onInstall: () -> Unit, onLaunchCli: () -> Unit, onLaunchXfce: () -> Unit, onLaunchKde: () -> Unit, onStop: () -> Unit, onOpenX11: () -> Unit, onSettings: () -> Unit) {
     Box(modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp)).background(Brush.linearGradient(colors = listOf(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f), Color.Transparent))).border(1.dp, Brush.verticalGradient(listOf(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f), Color.Transparent)), RoundedCornerShape(28.dp)).padding(24.dp)) {
         Column {
@@ -499,6 +758,7 @@ fun DebianHeroCard(distro: Distro, isInstalled: Boolean, isGuiRunning: Boolean, 
                 Spacer(modifier = Modifier.width(16.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text("Debian GNU/Linux", fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.onSurface)
+                    Text("PRoot · no root required", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(if (isInstalled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.tertiary))
                         Spacer(modifier = Modifier.width(8.dp))
@@ -519,8 +779,32 @@ fun DebianHeroCard(distro: Distro, isInstalled: Boolean, isGuiRunning: Boolean, 
                 if (isGuiRunning) {
                     Spacer(modifier = Modifier.height(16.dp))
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Button(onClick = onOpenX11, modifier = Modifier.weight(1.5f).height(48.dp), colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primaryContainer, contentColor = MaterialTheme.colorScheme.onPrimaryContainer), shape = RoundedCornerShape(14.dp), border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f))) { Icon(Icons.Default.Visibility, contentDescription = null, modifier = Modifier.size(18.dp)); Spacer(modifier = Modifier.width(8.dp)); Text("Open ${guiRunningType.uppercase()}", fontWeight = FontWeight.Bold) }
-                        Button(onClick = onStop, modifier = Modifier.weight(1f).height(48.dp), colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.errorContainer, contentColor = MaterialTheme.colorScheme.error), shape = RoundedCornerShape(14.dp), border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.3f))) { Text("Stop", fontWeight = FontWeight.Bold) }
+                        Button(
+                            onClick = onOpenX11,
+                            modifier = Modifier.weight(1.5f).height(48.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                            ),
+                            shape = RoundedCornerShape(14.dp),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f))
+                        ) {
+                            Icon(Icons.Default.Visibility, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Open Display", fontWeight = FontWeight.Bold)
+                        }
+                        Button(
+                            onClick = onStop,
+                            modifier = Modifier.weight(1f).height(48.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.errorContainer,
+                                contentColor = MaterialTheme.colorScheme.error
+                            ),
+                            shape = RoundedCornerShape(14.dp),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.3f))
+                        ) {
+                            Text("Stop", fontWeight = FontWeight.Bold)
+                        }
                     }
                 }
             }
