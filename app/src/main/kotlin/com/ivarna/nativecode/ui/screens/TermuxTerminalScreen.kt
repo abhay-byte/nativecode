@@ -134,6 +134,13 @@ fun TermuxTerminalScreen(
 
             override fun onTitleChanged(s: TerminalSession) {}
             override fun onSessionFinished(s: TerminalSession) {
+                val tail = try {
+                    s.emulator?.screen?.transcriptTextWithoutJoinedLines?.takeLast(1200)
+                } catch (_: Exception) { null }
+                android.util.Log.e(
+                    "TermuxTerminalScreen",
+                    "Native terminal exited: status=${s.exitStatus} output=${tail ?: "<none>"}",
+                )
                 TerminalSessionHub.markFinished(s)
             }
             override fun onCopyTextToClipboard(s: TerminalSession, text: String) {}

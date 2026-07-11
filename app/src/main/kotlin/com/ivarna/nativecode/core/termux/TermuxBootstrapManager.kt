@@ -128,8 +128,8 @@ object TermuxBootstrapManager {
         execCommand: String? = null,
     ): SessionLaunch {
         ensureProotDeps(context)
-        // Use direct linker64+bash when bootstrap was compiled for our package id
-        // (bundled=true in .direct-mode) — no proot/ptrace needed.
+        // A NativeCode-built bootstrap has ELF paths for this package and can be
+        // started directly. Stock downloaded bootstraps still need the fallback.
         if (!forceProot && isBundledBootstrap(context)) {
             Log.i(TAG, "SessionLaunch DIRECT (bundled bootstrap, no proot)")
             return buildDirectLaunch(context, execCommand = execCommand)
@@ -140,12 +140,16 @@ object TermuxBootstrapManager {
     /** True when the installed bootstrap was extracted from our bundled asset (correct paths). */
     fun isBundledBootstrap(context: Context): Boolean {
         val marker = File(prefixDir(context), ".direct-mode")
-        return marker.exists() && marker.readText().contains("bundled=true")
+        return try {
+            marker.isFile && marker.readText().lineSequence().any { it == "bundled=true" }
+        } catch (_: Exception) {
+            false
+        }
     }
 
     /**
-     * Direct linker64+bash — broken on modern Android for non-com.termux package
-     * (RUNPATH + ignored LD_LIBRARY_PATH). Kept for experiments only.
+     * Direct linker64+bash — linker loads bash from app data dir, and
+     * libtermux-exec.so (DT_NEEDED) intercepts child execve() calls.
      */
     fun buildDirectLaunch(context: Context, execCommand: String? = null): SessionLaunch {
         val prefix = realPrefixPath(context)
@@ -157,9 +161,9 @@ object TermuxBootstrapManager {
         val tmp = tmpDir(context).absolutePath
 
         val args = if (!execCommand.isNullOrBlank()) {
-            arrayOf(bash, bash, "--login", "-c", execCommand)
+            arrayOf(linker, bash, "--login", "-c", execCommand)
         } else {
-            arrayOf(bash, bash, "--login")
+            arrayOf(linker, bash, "--login", "-i")
         }
         val env = arrayOf(
             "HOME=$home",
@@ -170,7 +174,6 @@ object TermuxBootstrapManager {
             "COLORTERM=truecolor",
             "PATH=$prefix/bin:$prefix/bin/applets:/system/bin:/system/xbin",
             "LD_LIBRARY_PATH=$prefix/lib:$filesDir:$nativeLib",
-            "LD_PRELOAD=$prefix/lib/libtermux-exec.so",
             "TERMUX_PREFIX=$prefix",
             "TERMUX_HOME=$home",
             "ANDROID_DATA=/data",
@@ -381,12 +384,14 @@ object TermuxBootstrapManager {
             prefix.mkdirs()
 
             if (hasBundled) {
-                // Pre-compiled for com.ivarna.nativecode — extract directly, no relocation.
+                // Pre-compiled for com.ivarna.nativecode — extract directly.
                 Log.i(TAG, "Using bundled bootstrap asset: $assetName")
                 onProgress(BootstrapState.Extracting(0))
                 context.assets.open(assetName).use { stream ->
                     extractStream(stream, prefix, onProgress)
                 }
+                onProgress(BootstrapState.Relocating("Relocating paths…"))
+                relocateBootstrapToNativeCode(context)
                 // Mark direct mode (paths already correct)
                 val newPrefix = realPrefixPath(context)
                 val newHome  = realHomePath(context)
@@ -448,7 +453,15 @@ object TermuxBootstrapManager {
             // Skip huge caches
             if (f.path.contains("/var/cache/")) return@forEach
 
-            val isProbablyText = f.extension in TEXT_EXTS ||
+            val hasShebang = try {
+                f.inputStream().use { inp ->
+                    val b = ByteArray(2)
+                    inp.read(b) == 2 && b[0] == '#'.toByte() && b[1] == '!'.toByte()
+                }
+            } catch (_: Exception) { false }
+
+            val isProbablyText = hasShebang ||
+                f.extension in TEXT_EXTS ||
                 f.name in TEXT_NAMES ||
                 f.path.contains("/etc/") ||
                 f.path.contains("/share/") ||
