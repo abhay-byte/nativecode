@@ -82,36 +82,47 @@ object TerminalSessionHub {
         command: String? = null,
         cols: Int = 80,
         rows: Int = 24,
+        /** @param forceProot ignored — always proot bind (direct broken on app UID). */
+        forceProot: Boolean = false,
     ): Tab? {
         return try {
+            if (!TermuxBootstrapManager.isInstalled(context)) {
+                Log.e(TAG, "createBootstrapSession: bootstrap not installed")
+                return null
+            }
             TermuxBootstrapManager.ensureProotDeps(context)
-            val launcher = TermuxBootstrapManager.launcherPath()
-            val args = TermuxBootstrapManager.buildProotArgs(context)
-            val cwd = context.filesDir.absolutePath
-            val env = TermuxBootstrapManager.buildEnvironment(context)
-            val session = TerminalSession(launcher, cwd, args, env, 2000, sessionClient)
+            // One-shot commands (start_gui, install): bash -lc — no interactive delay
+            val oneShot = !command.isNullOrBlank()
+            val launch = TermuxBootstrapManager.buildSessionLaunch(
+                context,
+                forceProot = true,
+                execCommand = if (oneShot) command else null,
+            )
+            val session = TerminalSession(
+                launch.executable,
+                launch.cwd,
+                launch.args,
+                launch.env,
+                500,
+                sessionClient,
+            )
             session.initializeEmulator(cols, rows, 0, 0)
 
             val n = seq.incrementAndGet()
+            val modeTag = if (launch.usedProot) "proot" else "direct"
             val tab = Tab(
                 id = UUID.randomUUID().toString(),
                 title = title ?: titleForCommand(command, "Shell $n"),
-                subtitle = subtitleForCommand(command),
+                subtitle = "$modeTag · ${subtitleForCommand(command)}",
                 session = session,
             )
             _tabs.update { it + tab }
             _activeId.value = tab.id
-            Log.i(TAG, "Created tab id=${tab.id} title=${tab.title}")
-
-            if (!command.isNullOrBlank()) {
-                // Delay so bash RC settles
-                Thread({
-                    try {
-                        Thread.sleep(1200L)
-                        if (session.isRunning) session.write(command + "\n")
-                    } catch (_: Exception) {}
-                }, "term-cmd-${tab.id.take(8)}").apply { isDaemon = true }.start()
-            }
+            Log.i(
+                TAG,
+                "Created tab id=${tab.id} mode=$modeTag title=${tab.title} " +
+                    "oneShot=$oneShot exe=${launch.executable} running=${session.isRunning}",
+            )
             tab
         } catch (e: Exception) {
             Log.e(TAG, "createBootstrapSession failed", e)

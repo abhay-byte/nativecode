@@ -97,10 +97,16 @@ fun TermuxTerminalScreen(
         object : TerminalSessionClient {
             override fun onTextChanged(s: TerminalSession) {
                 termViewRef.value?.onScreenUpdated()
+                // Cheap path: only scan when install/GUI markers matter — never rebuild
+                // full multi-thousand-line transcript on every keystroke (was a major lag source).
+                if (!isInstalling && !isGuiLaunch) return
+                if (installDone && (!isGuiLaunch || x11Opened)) return
                 try {
-                    val text = s.emulator?.screen?.transcriptText
-                        ?: s.emulator?.screen?.getTranscriptText()
-                        ?: return
+                    val screen = s.emulator?.screen ?: return
+                    // Prefer compact API; only keep a short tail for marker scans
+                    val full = screen.transcriptTextWithoutJoinedLines ?: return
+                    val text = if (full.length > 2500) full.takeLast(2500) else full
+                    if (text.isEmpty()) return
 
                     if (isInstalling) {
                         val stepRegex = Regex("""\[STEP (\d+)\] (.+)""")
@@ -117,7 +123,11 @@ fun TermuxTerminalScreen(
                     if (isGuiLaunch && !x11Opened && text.contains("X11 ready")) {
                         x11Opened = true
                         android.util.Log.i("TermuxTerminalScreen", "X11 ready — opening embedded display")
-                        com.ivarna.nativecode.core.termux.GuiSessionLauncher.openX11Activity(context)
+                        // Always open from Activity on main looper (same task as host)
+                        val act = context as? android.app.Activity ?: return
+                        act.runOnUiThread {
+                            com.ivarna.nativecode.core.termux.GuiSessionLauncher.openX11Activity(act)
+                        }
                     }
                 } catch (_: Exception) {}
             }
@@ -147,14 +157,24 @@ fun TermuxTerminalScreen(
     }
 
     fun openNewShell(command: String? = null, title: String? = null) {
-        if (!bootstrapReady) return
+        if (!bootstrapReady) {
+            android.widget.Toast.makeText(context, "Bootstrap not ready", android.widget.Toast.LENGTH_SHORT).show()
+            return
+        }
         TerminalSessionHub.attachClient(sessionClient)
-        TerminalSessionHub.createBootstrapSession(
+        val tab = TerminalSessionHub.createBootstrapSession(
             context = context,
             sessionClient = sessionClient,
             title = title,
             command = command,
         )
+        if (tab == null) {
+            android.widget.Toast.makeText(
+                context,
+                "Failed to open terminal (see logcat: TerminalSessionHub)",
+                android.widget.Toast.LENGTH_LONG,
+            ).show()
+        }
     }
 
     // Open a new hub tab when host navigates here (openEpoch bumps each time)

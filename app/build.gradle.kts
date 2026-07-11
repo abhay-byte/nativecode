@@ -37,7 +37,7 @@ android {
         // AAPT automatically decompresses .gz files; noCompress keeps the
         // original bytes intact so GzipCompressorInputStream can read them.
         @Suppress("UnstableApiUsage")
-        noCompress += listOf("gz", "tar", "xz")
+        noCompress += listOf("gz", "tar", "xz", "zip")
     }
 
     // Disable dependency metadata block for F-Droid

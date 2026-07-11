@@ -354,6 +354,12 @@ class MainActivity : ComponentActivity() {
                         com.ivarna.nativecode.core.data.ScriptManager(this@MainActivity)
                             .deployLaunchScriptsToHome()
                     } catch (_: Exception) {}
+                    // GUI: never route through PTY terminal (outer proot + emulator lag)
+                    if (command.contains("start_gui")) {
+                        com.ivarna.nativecode.core.termux.GuiSessionLauncher
+                            .launchGui(this@MainActivity, command)
+                        return
+                    }
                     terminalInstallCommand = command
                     terminalInstallTitle = title
                     terminalInstallSteps = steps
@@ -473,30 +479,23 @@ class MainActivity : ComponentActivity() {
                                     android.util.Log.w("NativeCode", "Script redeploy skipped: ${e.message}")
                                 }
 
-                                // XFCE/KDE: show Terminal first; X11 opens after script prints "X11 ready"
-                                val isGui = cmd != null && cmd.contains("start_gui")
-                                if (isGui) {
-                                    // Pre-start embedded X server outside proot (socket ready for script)
-                                    Thread({
-                                        try {
-                                            com.ivarna.nativecode.core.termux.GuiSessionLauncher
-                                                .ensureXServer(this@MainActivity)
-                                        } catch (e: Exception) {
-                                            android.util.Log.e("NativeCode", "ensureXServer: ${e.message}", e)
-                                        }
-                                    }, "x11-prestart").apply { isDaemon = true }.start()
+                                // XFCE/KDE: skip internal Termux PTY (slow outer proot + emulator).
+                                // Fluxlinux on real Termux is fast (native shell); we match with
+                                // ProcessBuilder + X11 only — see GuiSessionLauncher.launchGui.
+                                if (cmd != null && cmd.contains("start_gui")) {
+                                    com.ivarna.nativecode.core.termux.GuiSessionLauncher
+                                        .launchGui(this@MainActivity, cmd)
+                                } else {
+                                    terminalInstallCommand = cmd
+                                    terminalInstallSteps = 0
+                                    terminalInstallTitle = when {
+                                        cmd == null -> "Terminal"
+                                        else -> "Launching…"
+                                    }
+                                    terminalInstallDistroId = null
+                                    terminalOpenEpoch++
+                                    currentScreen = Screen.TERMUX_TERMINAL
                                 }
-
-                                terminalInstallCommand = cmd
-                                terminalInstallSteps = 0
-                                terminalInstallTitle = when {
-                                    isGui -> "Launching desktop…"
-                                    cmd == null -> "Terminal"
-                                    else -> "Launching…"
-                                }
-                                terminalInstallDistroId = null
-                                terminalOpenEpoch++
-                                currentScreen = Screen.TERMUX_TERMINAL
                             },
                             onInstallComponent = onInstallComponentStub,
                             onLaunchTool = { tool, path ->
