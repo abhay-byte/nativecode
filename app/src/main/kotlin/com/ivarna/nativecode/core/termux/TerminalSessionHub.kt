@@ -95,7 +95,7 @@ object TerminalSessionHub {
             val oneShot = !command.isNullOrBlank()
             val launch = TermuxBootstrapManager.buildSessionLaunch(
                 context,
-                forceProot = true,
+                forceProot = forceProot,
                 execCommand = if (oneShot) command else null,
             )
             val session = TerminalSession(

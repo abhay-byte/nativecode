@@ -37,7 +37,7 @@ object TermuxBootstrapManager {
     private const val BOOTSTRAP_BASE_URL =
         "https://github.com/termux/termux-packages/releases/latest/download"
 
-    private const val TERMUX_PREFIX_RELATIVE = "termux-prefix"
+    private const val TERMUX_PREFIX_RELATIVE = "usr"
 
     /** Hardcoded in official Termux packages (path rewrite source). */
     const val STOCK_TERMUX_PREFIX = "/data/data/com.termux/files/usr"
@@ -132,7 +132,7 @@ object TermuxBootstrapManager {
         // (bundled=true in .direct-mode) — no proot/ptrace needed.
         if (!forceProot && isBundledBootstrap(context)) {
             Log.i(TAG, "SessionLaunch DIRECT (bundled bootstrap, no proot)")
-            return buildDirectLaunch(context)
+            return buildDirectLaunch(context, execCommand = execCommand)
         }
         return buildProotLaunch(context, execCommand = execCommand)
     }
@@ -147,7 +147,7 @@ object TermuxBootstrapManager {
      * Direct linker64+bash — broken on modern Android for non-com.termux package
      * (RUNPATH + ignored LD_LIBRARY_PATH). Kept for experiments only.
      */
-    fun buildDirectLaunch(context: Context): SessionLaunch {
+    fun buildDirectLaunch(context: Context, execCommand: String? = null): SessionLaunch {
         val prefix = realPrefixPath(context)
         val home = realHomePath(context)
         val bash = File(prefixDir(context), "bin/bash").absolutePath
@@ -156,7 +156,11 @@ object TermuxBootstrapManager {
         val filesDir = context.filesDir.absolutePath
         val tmp = tmpDir(context).absolutePath
 
-        val args = arrayOf(bash, "bash")
+        val args = if (!execCommand.isNullOrBlank()) {
+            arrayOf(bash, bash, "--login", "-c", execCommand)
+        } else {
+            arrayOf(bash, bash, "--login")
+        }
         val env = arrayOf(
             "HOME=$home",
             "PREFIX=$prefix",
@@ -166,6 +170,7 @@ object TermuxBootstrapManager {
             "COLORTERM=truecolor",
             "PATH=$prefix/bin:$prefix/bin/applets:/system/bin:/system/xbin",
             "LD_LIBRARY_PATH=$prefix/lib:$filesDir:$nativeLib",
+            "LD_PRELOAD=$prefix/lib/libtermux-exec.so",
             "TERMUX_PREFIX=$prefix",
             "TERMUX_HOME=$home",
             "ANDROID_DATA=/data",

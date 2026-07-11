@@ -200,7 +200,7 @@ object GuiSessionLauncher {
      */
     fun ensureXServer(context: Context) {
         val realTmp = File(context.filesDir, "termux-tmp").also { it.mkdirs() }
-        val realPrefix = File(context.filesDir, "termux-prefix")
+        val realPrefix = File(context.filesDir, "usr")
 
         val sock = File(realTmp, ".X11-unix/X0")
         // Live socket only if an X server process still holds it. Stale sockets

@@ -7,7 +7,7 @@
 
 DISTRO=${1:-debian}
 
-REAL_PREFIX="/data/data/com.ivarna.nativecode/files/termux-prefix"
+REAL_PREFIX="/data/data/com.ivarna.nativecode/files/usr"
 REAL_TMP="/data/data/com.ivarna.nativecode/files/termux-tmp"
 CANON="/data/data/com.termux/files/usr"
 if [ -d "$CANON/bin" ]; then PREFIX="$CANON"; else PREFIX="$REAL_PREFIX"; fi
