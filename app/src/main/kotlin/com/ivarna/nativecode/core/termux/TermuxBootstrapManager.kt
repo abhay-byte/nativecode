@@ -222,10 +222,17 @@ object TermuxBootstrapManager {
         val stockPrefix = STOCK_TERMUX_PREFIX
 
         // JNI: execvp(linker64, argv) — argv[0]=ELF path to load, argv[1]=argv0 for proot
+        val fipsFile = File(prefix, "etc/gcrypt/fips_enabled")
+        if (!fipsFile.exists()) {
+            fipsFile.parentFile?.mkdirs()
+            fipsFile.writeText("0")
+            fipsFile.setReadable(true, false)
+        }
         val base = mutableListOf(
             proot,
             proot,
             "--rootfs=/",
+            "--bind=${fipsFile.absolutePath}:/proc/sys/crypto/fips_enabled",
             "--bind=/dev", "--bind=/proc", "--bind=/sys",
             "--bind=/system",
             "--bind=${prefix.absolutePath}:$stockPrefix",
