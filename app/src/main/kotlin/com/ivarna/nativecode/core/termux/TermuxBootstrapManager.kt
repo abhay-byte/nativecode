@@ -332,8 +332,17 @@ object TermuxBootstrapManager {
 
     private fun ensureAptKeyring(context: Context) {
         val prefix = prefixDir(context)
-        listOf("etc/apt/apt.conf.d", "etc/apt/trusted.gpg.d", "etc/apt/preferences.d", "var/log/apt").forEach {
+        listOf("etc/apt/apt.conf.d", "etc/apt/trusted.gpg.d", "etc/apt/preferences.d", "var/log/apt", "var/cache/apt/archives/partial").forEach {
             File(prefix, it).apply { mkdirs(); setReadable(true, false); setExecutable(true, false) }
+        }
+        val sourcesFile = File(prefix, "etc/apt/sources.list")
+        if (!sourcesFile.exists() || sourcesFile.length() == 0L) {
+            try {
+                sourcesFile.writeText("deb https://packages-cf.termux.dev/apt/termux-main/ stable main\n")
+                sourcesFile.setReadable(true, false)
+            } catch (e: Exception) {
+                Log.w(TAG, "sources.list write failed", e)
+            }
         }
         val keyFile = File(prefix, "etc/apt/trusted.gpg.d/termux-keyring.gpg")
         if (keyFile.exists() && keyFile.length() > 0) return
