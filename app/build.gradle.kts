@@ -17,7 +17,7 @@ android {
     defaultConfig {
         applicationId = "com.ivarna.nativecode"
         minSdk = 26
-        targetSdk = 36
+        targetSdk = 28
         versionCode = 10
         versionName = "1.7.1"
 

@@ -155,15 +155,14 @@ object TermuxBootstrapManager {
         val prefix = realPrefixPath(context)
         val home = realHomePath(context)
         val bash = File(prefixDir(context), "bin/bash").absolutePath
-        val linker = linkerPath()
         val nativeLib = context.applicationInfo.nativeLibraryDir
         val filesDir = context.filesDir.absolutePath
         val tmp = tmpDir(context).absolutePath
 
         val args = if (!execCommand.isNullOrBlank()) {
-            arrayOf(linker, bash, "--login", "-c", execCommand)
+            arrayOf("bash", "--login", "-c", execCommand)
         } else {
-            arrayOf(linker, bash, "--login", "-i")
+            arrayOf("bash", "--login", "-i")
         }
         val env = arrayOf(
             "HOME=$home",
@@ -182,9 +181,9 @@ object TermuxBootstrapManager {
             "PROOT_TMP_DIR=$tmp",
             "PROOT_LOADER=$nativeLib/libproot_loader.so",
         )
-        Log.i(TAG, "SessionLaunch DIRECT linker=$linker bash=$bash prefix=$prefix")
+        Log.i(TAG, "SessionLaunch DIRECT bash=$bash prefix=$prefix")
         return SessionLaunch(
-            executable = linker,
+            executable = bash,
             args = args,
             cwd = homeDir(context).absolutePath,
             env = env,
